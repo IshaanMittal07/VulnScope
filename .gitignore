@@ -25,3 +25,6 @@ sandbox/vectors/
 .vscode/
 .idea/
 .DS_Store
+
+# Personal notes
+docs/phase-1-walkthrough.md
