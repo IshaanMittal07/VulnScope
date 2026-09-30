@@ -1,4 +1,4 @@
-.PHONY: help up down logs migrate revision test lint format
+.PHONY: help up down logs migrate revision psql seed test lint format
 
 # Load POSTGRES_* from .env so host-side commands can reach the compose database.
 -include .env
@@ -24,6 +24,12 @@ logs: ## Follow service logs
 
 migrate: ## Apply database migrations (stack must be up)
 	docker compose exec api alembic upgrade head
+
+psql: ## Open a psql shell on the dev database
+	docker compose exec db psql -U $(POSTGRES_USER) -d $(POSTGRES_DB)
+
+seed: ## Insert sample Juice Shop data into the dev database (re-runnable)
+	docker compose exec api python -m app.dev_seed
 
 revision: ## Autogenerate a migration: make revision m="add foo"
 	@test -n "$(m)" || (echo 'usage: make revision m="message"' && exit 1)
