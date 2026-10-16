@@ -57,3 +57,23 @@ This is a portfolio/resume project. Prioritize a small, reliable, well-tested sc
 ## Success metrics to track (for the resume)
 - Detection rate against known vulnerabilities in Juice Shop/DVWA.
 - Issues caught and fixed by the test-and-fix loop, and iterations needed.
+
+## Phase reference PDFs (local only)
+- At the end of **every phase** (see docs/IMPLEMENTATION_GUIDE.md), generate a reference PDF explaining
+  what the phase built and changed: what each new/changed file does, how the pieces connect, the
+  technologies involved, and what is still planned. Match the style of
+  `references/Phase_1_Architecture_Reference.pdf` (plain-language "toddler" explanations plus
+  file → responsibility tables).
+- Save it as `references/Phase_<N>_Reference.pdf`, **and** copy it to the Windows folder
+  `C:\Users\Dell\Desktop\VulnScopeExplanation` (`/mnt/c/Users/Dell/Desktop/VulnScopeExplanation` from WSL).
+- In the same folder, keep `SETUP_AND_COMMANDS.txt` current: whenever a phase adds or changes setup
+  steps, services, or `make` targets, update it so every command in it still works.
+- These PDFs must **never be committed or pushed**. `references/` and `*.pdf` are in `.gitignore`;
+  never use `git add -f` on them or remove those ignore rules.
+
+## Development environment
+- Code is developed and run inside the **Ubuntu WSL2** distro. The repo lives on the Windows drive and
+  is reached from Linux at `/mnt/c/Users/Dell/Desktop/VulnScope`.
+- `uv` is at `~/.local/bin/uv` and Node 22 at `~/.local/node/bin`. Docker comes from Docker Desktop
+  with WSL integration enabled for Ubuntu.
+- Ports in `docker-compose.yml` stay bound to `127.0.0.1`.
