@@ -25,6 +25,9 @@ services:
       interval: 10s
       timeout: 3s
       retries: 5
+      # Grace period for migrations before uvicorn binds; slow WSL2 /mnt/c I/O can take a while.
+      start_period: 60s
+      start_interval: 2s
 
   db:
     image: postgres:16-alpine
