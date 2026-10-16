@@ -22,7 +22,7 @@ down: ## Stop the stack
 logs: ## Follow service logs
 	docker compose logs -f
 
-migrate: ## Apply database migrations (stack must be up)
+migrate: ## Apply database migrations (the api container also does this on start)
 	docker compose exec api alembic upgrade head
 
 psql: ## Open a psql shell on the dev database
