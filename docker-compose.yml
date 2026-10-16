@@ -4,6 +4,7 @@ name: vulnscope
 services:
   api:
     build: ./backend
+    # The image entrypoint (backend/entrypoint.sh) applies migrations before this runs.
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
     env_file: .env
     environment:
@@ -24,6 +25,9 @@ services:
       interval: 10s
       timeout: 3s
       retries: 5
+      # Grace period for migrations before uvicorn binds; slow WSL2 /mnt/c I/O can take a while.
+      start_period: 60s
+      start_interval: 2s
 
   db:
     image: postgres:16-alpine

@@ -18,4 +18,6 @@ RUN useradd --create-home --uid 1000 app
 USER app
 
 EXPOSE 8000
+# Run via sh so the script needs no executable bit (git on /mnt/c ignores file modes).
+ENTRYPOINT ["sh", "/app/entrypoint.sh"]
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

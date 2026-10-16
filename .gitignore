@@ -28,3 +28,7 @@ sandbox/vectors/
 
 # Personal notes
 docs/phase-1-walkthrough.md
+
+# Local-only phase reference PDFs — never pushed to GitHub
+references/
+*.pdf

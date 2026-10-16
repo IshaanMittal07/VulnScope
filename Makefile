@@ -1,4 +1,4 @@
-.PHONY: help up down logs migrate revision psql seed test lint format
+.PHONY: help up down logs migrate reset-db revision psql seed test lint format
 
 # Load POSTGRES_* from .env so host-side commands can reach the compose database.
 -include .env
@@ -13,8 +13,10 @@ help: ## List targets
 .env:
 	cp .env.example .env
 
-up: .env ## Build and start the stack
-	docker compose up -d --build
+up: .env ## Build and start the stack, and wait until it is healthy
+	@docker compose up -d --build --wait || { \
+		echo; echo "The stack did not become healthy. See the error with: docker compose logs api"; \
+		echo "If it says 'password authentication failed', run: make reset-db"; exit 1; }
 
 down: ## Stop the stack
 	docker compose down
@@ -22,8 +24,15 @@ down: ## Stop the stack
 logs: ## Follow service logs
 	docker compose logs -f
 
-migrate: ## Apply database migrations (stack must be up)
+migrate: ## Apply database migrations (the api container also does this on start)
 	docker compose exec api alembic upgrade head
+
+reset-db: .env ## DELETE the dev database and recreate it (fixes a password mismatch)
+	@echo "Postgres only reads POSTGRES_* from .env when its volume is first created."
+	@printf 'This permanently deletes ALL data in the dev database. Type "yes" to continue: '
+	@read answer && [ "$$answer" = yes ] || (echo "Aborted." && exit 1)
+	docker compose down -v
+	docker compose up -d --build --wait
 
 psql: ## Open a psql shell on the dev database
 	docker compose exec db psql -U $(POSTGRES_USER) -d $(POSTGRES_DB)
