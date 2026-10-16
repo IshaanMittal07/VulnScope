@@ -13,8 +13,10 @@ help: ## List targets
 .env:
 	cp .env.example .env
 
-up: .env ## Build and start the stack
-	docker compose up -d --build
+up: .env ## Build and start the stack, and wait until it is healthy
+	@docker compose up -d --build --wait || { \
+		echo; echo "The stack did not become healthy. See the error with: docker compose logs api"; \
+		echo "If it says 'password authentication failed', run: make reset-db"; exit 1; }
 
 down: ## Stop the stack
 	docker compose down
