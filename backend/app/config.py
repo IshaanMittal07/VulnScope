@@ -2,6 +2,7 @@
 
 from functools import lru_cache
 
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -12,6 +13,11 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+psycopg://vulnscope:vulnscope@localhost:5432/vulnscope"
     redis_url: str = "redis://localhost:6379/0"
     lab_mode: bool = True
+
+    # RQ queue that runs the pipeline stages (app/workers).
+    pipeline_queue: str = "pipeline"
+    # Phase 3 stages are stubs that sleep this long, so polling a scan shows each state.
+    pipeline_step_delay_seconds: float = Field(default=1.0, ge=0)
 
 
 @lru_cache
