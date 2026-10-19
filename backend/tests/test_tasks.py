@@ -7,6 +7,7 @@ import pytest
 from redis.exceptions import ConnectionError as RedisConnectionError
 from rq import Queue
 from sqlalchemy import Engine, text
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.db import session as db_session
@@ -149,6 +150,32 @@ def test_unknown_scan_id_fails_the_job(
 ) -> None:
     with pytest.raises(LookupError):
         tasks.run_scan(str(uuid.uuid4()))
+
+
+def test_failed_commit_still_marks_scan_failed(
+    session_factory: sessionmaker[Session], sync_queue: Queue, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    record_states(monkeypatch)
+    scan_id = create_scan(session_factory)
+    real_commit = Session.commit
+    commits = 0
+
+    def commit_that_fails_once(self: Session) -> None:
+        nonlocal commits
+        commits += 1
+        if commits == 1:
+            raise OperationalError("COMMIT", {}, Exception("server closed the connection"))
+        real_commit(self)
+
+    monkeypatch.setattr(Session, "commit", commit_that_fails_once)
+
+    with pytest.raises(OperationalError):
+        tasks.run_scan(scan_id)
+
+    scan = load_scan(session_factory, scan_id)
+    assert scan.state is PipelineState.FAILED
+    assert scan.error_message is not None
+    assert scan.error_message.startswith("scanning stage failed: OperationalError:")
 
 
 def test_concurrent_duplicate_job_waits_for_row_lock_then_is_rejected(

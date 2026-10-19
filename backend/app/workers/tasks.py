@@ -34,8 +34,8 @@ def _run_stage(scan_id: str, state: PipelineState, next_stage: Stage | None) -> 
         # A stale or duplicate job must not touch the scan, so this check sits outside the
         # try block: InvalidTransitionError fails the job but leaves the scan as it was.
         pipeline.advance(scan, state)
-        db.commit()
         try:
+            db.commit()
             placeholder_work(scan)
             if next_stage is None:
                 pipeline.advance(scan, PipelineState.COMPLETE)
