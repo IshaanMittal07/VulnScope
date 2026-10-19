@@ -22,7 +22,7 @@ FAIL_LOST_STAGE = "app.workers.tasks.fail_lost_stage"
 
 def _queue_recovery(job: Job, reason: str) -> None:
     if job.args:
-        queue.get_queue().enqueue(FAIL_LOST_STAGE, job.func_name, str(job.args[0]), reason)
+        queue.get_queue().enqueue(FAIL_LOST_STAGE, job.func_name, str(job.args[0]), reason, job.id)
 
 
 def on_stage_failure(

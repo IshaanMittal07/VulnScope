@@ -40,14 +40,24 @@ def lost_job(queue: Queue, scan_id: str) -> Job:
     )
 
 
+def owned_lost_job(factory: sessionmaker[Session], queue: Queue, scan_id: str) -> Job:
+    """A lost run_scan job that had moved the scan into "scanning", so it owns the stage."""
+    job = lost_job(queue, scan_id)
+    with factory() as db:
+        scan = db.get(Scan, uuid.UUID(scan_id))
+        assert scan is not None
+        scan.stage_job_id = job.id
+        db.commit()
+    return job
+
+
 def test_abandoned_job_marks_scan_failed(
     session_factory: sessionmaker[Session], sync_queue: Queue
 ) -> None:
     scan_id = scan_in(session_factory, PipelineState.SCANNING)
+    job = owned_lost_job(session_factory, sync_queue, scan_id)
 
-    recovery.on_stage_failure(
-        lost_job(sync_queue, scan_id), sync_queue.connection, AbandonedJobError, None, None
-    )
+    recovery.on_stage_failure(job, sync_queue.connection, AbandonedJobError, None, None)
 
     scan = state_of(session_factory, scan_id)
     assert scan.state is PipelineState.FAILED
@@ -60,9 +70,10 @@ def test_killed_job_process_marks_scan_failed(
     session_factory: sessionmaker[Session], sync_queue: Queue
 ) -> None:
     scan_id = scan_in(session_factory, PipelineState.SCANNING)
+    job = owned_lost_job(session_factory, sync_queue, scan_id)
     killed_by_sigkill = signal.SIGKILL  # waitpid status of a process killed by a signal
 
-    recovery.on_work_horse_killed(lost_job(sync_queue, scan_id), 1234, killed_by_sigkill, None)
+    recovery.on_work_horse_killed(job, 1234, killed_by_sigkill, None)
 
     scan = state_of(session_factory, scan_id)
     assert scan.state is PipelineState.FAILED
@@ -75,9 +86,10 @@ def test_job_process_with_nonzero_exit_reports_its_code(
     session_factory: sessionmaker[Session], sync_queue: Queue
 ) -> None:
     scan_id = scan_in(session_factory, PipelineState.SCANNING)
+    job = owned_lost_job(session_factory, sync_queue, scan_id)
     exited_with_3 = 3 << 8  # waitpid encodes a normal exit code in the high byte
 
-    recovery.on_work_horse_killed(lost_job(sync_queue, scan_id), 1234, exited_with_3, None)
+    recovery.on_work_horse_killed(job, 1234, exited_with_3, None)
 
     assert state_of(session_factory, scan_id).error_message == (
         "scanning stage failed: the job's process died unexpectedly (exit code 3)"
@@ -109,6 +121,36 @@ def test_job_lost_before_it_moved_the_scan_on_still_fails_it(
     assert scan.state is PipelineState.FAILED
     assert scan.error_message is not None
     assert scan.error_message.startswith("scanning stage failed:")
+
+
+def test_duplicate_job_dying_leaves_the_owners_scan_alone(
+    session_factory: sessionmaker[Session], sync_queue: Queue
+) -> None:
+    # The real run_scan owns "scanning" and is still working; a duplicate copy of it dies.
+    scan_id = scan_in(session_factory, PipelineState.SCANNING)
+    owned_lost_job(session_factory, sync_queue, scan_id)
+    duplicate = lost_job(sync_queue, scan_id)
+
+    recovery.on_work_horse_killed(duplicate, 1234, signal.SIGKILL, None)
+
+    scan = state_of(session_factory, scan_id)
+    assert scan.state is PipelineState.SCANNING
+    assert scan.error_message is None
+
+
+def test_each_stage_records_the_job_that_owns_it(
+    session_factory: sessionmaker[Session], sync_queue: Queue, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    owners: list[str | None] = []
+    monkeypatch.setattr(tasks, "placeholder_work", lambda scan: owners.append(scan.stage_job_id))
+    scan_id = scan_in(session_factory, PipelineState.QUEUED)
+
+    first = tasks.enqueue_stage(sync_queue, tasks.run_scan, scan_id)
+
+    assert owners[0] == first.id
+    assert len(owners) == 5
+    assert None not in owners
+    assert len(set(owners)) == 5  # every stage was moved on by its own job
 
 
 @pytest.mark.parametrize(

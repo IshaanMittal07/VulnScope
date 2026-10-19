@@ -11,7 +11,7 @@ import time
 import uuid
 from collections.abc import Callable
 
-from rq import Queue
+from rq import Queue, get_current_job
 from rq.job import Callback, Job
 from sqlalchemy.orm import Session
 
@@ -46,6 +46,8 @@ def _run_stage(scan_id: str, state: PipelineState, next_stage: Stage | None) -> 
         # A stale or duplicate job must not touch the scan, so this check sits outside the
         # try block: InvalidTransitionError fails the job but leaves the scan as it was.
         pipeline.advance(scan, state)
+        current_job = get_current_job()  # None when a stage is called directly (tests)
+        scan.stage_job_id = current_job.id if current_job is not None else None
         try:
             db.commit()
             placeholder_work(scan)
@@ -108,13 +110,14 @@ STAGE_STATES: dict[str, PipelineState] = {
 }
 
 
-def fail_lost_stage(stage_job: str, scan_id: str, reason: str) -> None:
+def fail_lost_stage(stage_job: str, scan_id: str, reason: str, job_id: str | None = None) -> None:
     """Recovery job queued by app.workers.recovery: a stage job died without recording anything.
 
-    Fails the scan if it is still in that job's stage, or in the stage before it (the job died
-    before it could move the scan on). Each stage job is queued only after the previous stage
-    finished, so nothing else will move such a scan. If the scan is anywhere else, the failure
-    was already recorded or the scan moved on, and it is left alone.
+    Fails the scan when the lost job owned it: the scan is in that job's stage and its
+    stage_job_id is the lost job's id, or the scan is still in the stage before (the job died
+    before it could move the scan on; each stage job is queued only after the previous stage
+    finished, so nothing else will move it). A duplicate job that dies while the real one is
+    working doesn't own the stage, so it leaves the scan alone, as does any scan that moved on.
     """
     state = STAGE_STATES.get(stage_job)
     if state is None:
@@ -122,7 +125,10 @@ def fail_lost_stage(stage_job: str, scan_id: str, reason: str) -> None:
     previous = pipeline.STAGE_ORDER[pipeline.STAGE_ORDER.index(state) - 1]
     with session.SessionLocal() as db:
         scan = db.get(Scan, uuid.UUID(scan_id), with_for_update=True)
-        if scan is None or scan.state not in (previous, state):
+        if scan is None:
+            return
+        owned_stage = scan.state is state and job_id is not None and scan.stage_job_id == job_id
+        if not (owned_stage or scan.state is previous):
             return
         pipeline.fail(scan, f"{state} stage failed: {reason}")
         db.commit()

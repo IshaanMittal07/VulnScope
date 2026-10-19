@@ -30,6 +30,9 @@ class Scan(UUIDPrimaryKey, Timestamps, Base):
     error_message: Mapped[str | None] = mapped_column(Text)
     started_at: Mapped[datetime | None]
     finished_at: Mapped[datetime | None]
+    # RQ id of the stage job that moved the scan into its current state. Recovery uses it to tell
+    # the job that owns the stage apart from a duplicate (app/workers/tasks.py:fail_lost_stage).
+    stage_job_id: Mapped[str | None] = mapped_column(String(64))
 
     target: Mapped[Target] = relationship(back_populates="scans")
     jobs: Mapped[list[ScanJob]] = relationship(
