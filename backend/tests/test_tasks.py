@@ -1,13 +1,16 @@
 """Integration tests: pipeline jobs run through RQ's synchronous mode against the test database."""
 
+import threading
 import uuid
 
 import pytest
 from redis.exceptions import ConnectionError as RedisConnectionError
 from rq import Queue
+from sqlalchemy import Engine, text
 from sqlalchemy.orm import Session, sessionmaker
 
-from app.models import Scan
+from app.db import session as db_session
+from app.models import Scan, Target
 from app.models.enums import PipelineState
 from app.workers import queue as pipeline_queue
 from app.workers import tasks
@@ -146,3 +149,56 @@ def test_unknown_scan_id_fails_the_job(
 ) -> None:
     with pytest.raises(LookupError):
         tasks.run_scan(str(uuid.uuid4()))
+
+
+def test_concurrent_duplicate_job_waits_for_row_lock_then_is_rejected(
+    engine: Engine, sync_queue: Queue, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Two workers running the same job: the second must wait for the first, then back off.
+
+    Uses real, committed rows and two connections, because a row lock only blocks *another*
+    connection. Without FOR UPDATE the duplicate would read the old state and advance it again.
+    """
+    record_states(monkeypatch)
+    factory = sessionmaker(bind=engine, expire_on_commit=False)
+    monkeypatch.setattr(db_session, "SessionLocal", factory)
+    with factory() as setup:
+        scan = Scan(target=make_target(setup))
+        setup.add(scan)
+        setup.commit()
+        scan_id, target_id = scan.id, scan.target_id
+    try:
+        errors: list[Exception] = []
+
+        def duplicate_job() -> None:
+            try:
+                tasks.run_scan(str(scan_id))
+            except Exception as exc:
+                errors.append(exc)
+
+        with engine.connect() as first_job:
+            tx = first_job.begin()
+            # The first job is mid-transition: it holds the row and has moved it to scanning.
+            first_job.execute(
+                text("UPDATE scans SET state = 'scanning' WHERE id = :id"), {"id": scan_id}
+            )
+            worker = threading.Thread(target=duplicate_job)
+            worker.start()
+            worker.join(timeout=1.0)
+            assert worker.is_alive(), "the duplicate job should be waiting on the row lock"
+            tx.commit()
+            worker.join(timeout=10.0)
+            assert not worker.is_alive()
+
+        assert len(errors) == 1
+        assert isinstance(errors[0], InvalidTransitionError)
+        with factory() as db:
+            stored = db.get(Scan, scan_id)
+            assert stored is not None
+            assert stored.state is PipelineState.SCANNING
+    finally:
+        with factory() as cleanup:
+            target = cleanup.get(Target, target_id)
+            if target is not None:
+                cleanup.delete(target)
+                cleanup.commit()

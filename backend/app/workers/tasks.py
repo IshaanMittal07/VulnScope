@@ -26,7 +26,9 @@ def placeholder_work(scan: Scan) -> None:
 
 def _run_stage(scan_id: str, state: PipelineState, next_stage: Stage | None) -> None:
     with session.SessionLocal() as db:
-        scan = db.get(Scan, uuid.UUID(scan_id))
+        # SELECT ... FOR UPDATE: if two copies of the same job run at once (two workers), the
+        # second waits here until the first commits, then sees the new state and is rejected.
+        scan = db.get(Scan, uuid.UUID(scan_id), with_for_update=True)
         if scan is None:
             raise LookupError(f"scan {scan_id} does not exist")
         # A stale or duplicate job must not touch the scan, so this check sits outside the
