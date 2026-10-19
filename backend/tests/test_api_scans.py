@@ -2,15 +2,17 @@
 
 import uuid
 
+import fakeredis
 import pytest
 from fastapi.testclient import TestClient
 from redis.exceptions import ConnectionError as RedisConnectionError
+from rq import Queue
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.models import Scan
 from app.models.enums import PipelineState
 from app.workers import queue as pipeline_queue
-from app.workers import tasks
+from app.workers import recovery, tasks
 from tests.api_helpers import create_target, start_scan
 
 
@@ -69,7 +71,7 @@ def test_scan_when_queue_is_down_is_503_and_marked_failed(
     client: TestClient, session_factory: sessionmaker[Session], monkeypatch: pytest.MonkeyPatch
 ) -> None:
     class UnreachableQueue:
-        def enqueue(self, *args: object) -> None:
+        def enqueue(self, *args: object, **kwargs: object) -> None:
             raise RedisConnectionError("Error 111 connecting to redis:6379. Connection refused.")
 
     monkeypatch.setattr(pipeline_queue, "get_queue", UnreachableQueue)
@@ -93,3 +95,19 @@ def test_get_unknown_scan_is_404(client: TestClient) -> None:
 
 def test_get_scan_with_malformed_id_is_422(client: TestClient) -> None:
     assert client.get("/scans/not-a-uuid").status_code == 422
+
+
+def test_first_stage_job_carries_the_recovery_callback(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """POST /scans queues run_scan through enqueue_stage, so a lost first job is recovered too."""
+    stored = Queue("pipeline", connection=fakeredis.FakeRedis())  # async: the job waits in Redis
+    monkeypatch.setattr(pipeline_queue, "get_queue", lambda: stored)
+
+    scan = start_scan(client, create_target(client)["id"]).json()
+
+    assert scan["state"] == "queued"
+    (job,) = stored.get_jobs()
+    assert job.func_name == "app.workers.tasks.run_scan"
+    assert job.args == (scan["id"],)
+    assert job.failure_callback is recovery.on_stage_failure
