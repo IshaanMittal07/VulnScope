@@ -99,7 +99,7 @@ def test_lost_redis_between_stages_marks_scan_failed(
     record_states(monkeypatch)
 
     class UnreachableQueue:
-        def enqueue(self, *args: object) -> None:
+        def enqueue(self, *args: object, **kwargs: object) -> None:
             raise RedisConnectionError("Error 111 connecting to redis:6379. Connection refused.")
 
     monkeypatch.setattr(pipeline_queue, "get_queue", UnreachableQueue)
