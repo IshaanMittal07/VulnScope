@@ -1,13 +1,20 @@
-"""Database fixtures: a dedicated *_test database, built by running the real Alembic migration."""
+"""Test fixtures: a dedicated *_test database built by the real Alembic migration, and a
+synchronous RQ queue for running pipeline jobs inside a test."""
 
 import os
 from collections.abc import Iterator
 
+import fakeredis
 import pytest
 from alembic import command
 from alembic.config import Config
+from rq import Queue
 from sqlalchemy import Engine, create_engine, make_url, text
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, sessionmaker
+
+from app.config import get_settings
+from app.db import session as db_session
+from app.workers import queue as pipeline_queue
 
 DEFAULT_TEST_URL = "postgresql+psycopg://vulnscope:vulnscope@localhost:5432/vulnscope_test"
 
@@ -68,3 +75,30 @@ def db(engine: Engine) -> Iterator[Session]:
         finally:
             session.close()
             outer.rollback()
+
+
+@pytest.fixture
+def session_factory(
+    engine: Engine, monkeypatch: pytest.MonkeyPatch
+) -> Iterator[sessionmaker[Session]]:
+    """Replace the app's SessionLocal so code under test (API requests, pipeline jobs) uses the
+    test database, with everything rolled back afterwards even though that code commits."""
+    with engine.connect() as conn:
+        outer = conn.begin()
+        factory = sessionmaker(
+            bind=conn, join_transaction_mode="create_savepoint", expire_on_commit=False
+        )
+        monkeypatch.setattr(db_session, "SessionLocal", factory)
+        try:
+            yield factory
+        finally:
+            outer.rollback()
+
+
+@pytest.fixture
+def sync_queue(monkeypatch: pytest.MonkeyPatch) -> Queue:
+    """RQ's synchronous mode on an in-memory Redis: enqueue() runs the job immediately."""
+    queue = Queue("pipeline", connection=fakeredis.FakeRedis(), is_async=False)
+    monkeypatch.setattr(pipeline_queue, "get_queue", lambda: queue)
+    monkeypatch.setattr(get_settings(), "pipeline_step_delay_seconds", 0)
+    return queue
