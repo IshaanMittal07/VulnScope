@@ -31,9 +31,10 @@ services:
 
   worker:
     build: ./backend
-    # Runs pipeline jobs from the "pipeline" queue. The image entrypoint also runs migrations;
-    # waiting for a healthy api means they have already been applied, so this is a no-op and the
-    # two containers never migrate at the same time.
+    # Runs pipeline jobs from the "pipeline" queue. Migrations belong to the api alone: skip the
+    # image entrypoint (backend/entrypoint.sh) so the worker never migrates, and wait for a healthy
+    # api, which has already brought the schema up to date.
+    entrypoint: []
     command: python -m app.workers.worker
     env_file: .env
     environment:
