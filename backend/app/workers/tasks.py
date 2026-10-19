@@ -6,15 +6,20 @@ remaining stages never run. In Phase 3 the work is a stub that only sleeps; late
 it (real scanners arrive in Phase 5).
 """
 
+import logging
 import time
 import uuid
 from collections.abc import Callable
+
+from sqlalchemy.orm import Session
 
 from app.config import get_settings
 from app.db import session
 from app.models import Scan
 from app.models.enums import PipelineState
 from app.workers import pipeline, queue
+
+logger = logging.getLogger(__name__)
 
 Stage = Callable[[str], None]
 
@@ -45,12 +50,21 @@ def _run_stage(scan_id: str, state: PipelineState, next_stage: Stage | None) -> 
             if next_stage is not None:
                 queue.get_queue().enqueue(next_stage, scan_id)
         except Exception as exc:
-            db.rollback()
-            scan = db.get(Scan, uuid.UUID(scan_id))
-            if scan is not None and scan.state not in pipeline.FINAL_STATES:
-                pipeline.fail(scan, f"{state} stage failed: {type(exc).__name__}: {exc}")
-                db.commit()
-            raise  # RQ records the job as failed, with the traceback.
+            _record_failure(db, scan_id, f"{state} stage failed: {type(exc).__name__}: {exc}")
+            raise  # RQ records the job as failed, with the original traceback.
+
+
+def _record_failure(db: Session, scan_id: str, message: str) -> None:
+    """Mark the scan failed. Best effort: if this goes wrong too (say the database is down),
+    log it rather than raise, so the stage's original exception is the one RQ reports."""
+    try:
+        db.rollback()
+        scan = db.get(Scan, uuid.UUID(scan_id), with_for_update=True)
+        if scan is not None and scan.state not in pipeline.FINAL_STATES:
+            pipeline.fail(scan, message)
+            db.commit()
+    except Exception:
+        logger.exception("could not mark scan %s failed", scan_id)
 
 
 def run_scan(scan_id: str) -> None:

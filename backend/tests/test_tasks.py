@@ -1,5 +1,6 @@
 """Integration tests: pipeline jobs run through RQ's synchronous mode against the test database."""
 
+import logging
 import threading
 import uuid
 
@@ -13,8 +14,8 @@ from sqlalchemy.orm import Session, sessionmaker
 from app.db import session as db_session
 from app.models import Scan, Target
 from app.models.enums import PipelineState
+from app.workers import pipeline, tasks
 from app.workers import queue as pipeline_queue
-from app.workers import tasks
 from app.workers.pipeline import InvalidTransitionError
 from tests.factories import make_target
 
@@ -176,6 +177,29 @@ def test_failed_commit_still_marks_scan_failed(
     assert scan.state is PipelineState.FAILED
     assert scan.error_message is not None
     assert scan.error_message.startswith("scanning stage failed: OperationalError:")
+
+
+def test_error_while_recording_failure_keeps_original_exception(
+    session_factory: sessionmaker[Session],
+    sync_queue: Queue,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    record_states(monkeypatch, fail_in=PipelineState.SCANNING)
+
+    def fail_that_breaks(scan: Scan, message: str) -> None:
+        raise ValueError("database went away")
+
+    monkeypatch.setattr(pipeline, "fail", fail_that_breaks)
+    scan_id = create_scan(session_factory)
+
+    # RQ must see the stage's own error ("boom"), not the secondary one.
+    with (
+        caplog.at_level(logging.ERROR, logger="app.workers.tasks"),
+        pytest.raises(RuntimeError, match="boom"),
+    ):
+        tasks.run_scan(scan_id)
+    assert f"could not mark scan {scan_id} failed" in caplog.text
 
 
 def test_concurrent_duplicate_job_waits_for_row_lock_then_is_rejected(
