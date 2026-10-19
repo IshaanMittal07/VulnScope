@@ -8,12 +8,14 @@ import fakeredis
 import pytest
 from alembic import command
 from alembic.config import Config
+from fastapi.testclient import TestClient
 from rq import Queue
 from sqlalchemy import Engine, create_engine, make_url, text
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.config import get_settings
 from app.db import session as db_session
+from app.main import app
 from app.workers import queue as pipeline_queue
 
 DEFAULT_TEST_URL = "postgresql+psycopg://vulnscope:vulnscope@localhost:5432/vulnscope_test"
@@ -102,3 +104,10 @@ def sync_queue(monkeypatch: pytest.MonkeyPatch) -> Queue:
     monkeypatch.setattr(pipeline_queue, "get_queue", lambda: queue)
     monkeypatch.setattr(get_settings(), "pipeline_step_delay_seconds", 0)
     return queue
+
+
+@pytest.fixture
+def client(session_factory: sessionmaker[Session], sync_queue: Queue) -> Iterator[TestClient]:
+    """The real app, wired to the test database and the synchronous pipeline queue."""
+    with TestClient(app) as test_client:
+        yield test_client

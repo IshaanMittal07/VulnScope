@@ -5,7 +5,8 @@ it handles. It scans the service with established open-source tools, maps the fi
 security frameworks, and generates a protection plan built only from vetted cryptographic
 primitives. The generated code then goes through an automated audit loop before the final report.
 
-> **Status:** early development (Phase 2, database models and migrations). See [docs/IMPLEMENTATION_GUIDE.md](docs/IMPLEMENTATION_GUIDE.md).
+> **Status:** early development (Phase 3, job queue and pipeline skeleton; the pipeline stages are
+> still stubs). See [docs/IMPLEMENTATION_GUIDE.md](docs/IMPLEMENTATION_GUIDE.md).
 
 > **Authorization:** only scan systems you own or have written permission to test. VulnScope
 > refuses to scan a target until you verify ownership of it.
@@ -25,6 +26,26 @@ make seed      # optional: add sample Juice Shop data to browse
 | API      | http://localhost:8000/health |
 | API docs | http://localhost:8000/docs   |
 | Frontend | http://localhost:5173        |
+| Worker   | no URL; `docker compose logs -f worker` shows the pipeline jobs it runs |
+
+### Try the pipeline
+
+Register a target, start a scan, then poll it. A worker runs the stages in the background, so
+repeating the last command shows the state advance
+`queued -> scanning -> analyzing -> planning -> auditing -> reporting -> complete`.
+
+```bash
+curl -s -X POST http://localhost:8000/targets -H 'Content-Type: application/json' \
+  -d '{"name": "Juice Shop (lab)", "target_type": "url", "value": "http://juice-shop:3000", "data_types": ["personal"]}'
+# copy the "id" from the response into <target-id>:
+curl -s -X POST http://localhost:8000/scans -H 'Content-Type: application/json' \
+  -d '{"target_id": "<target-id>"}'
+# copy the scan's "id" into <scan-id>, then repeat:
+curl -s http://localhost:8000/scans/<scan-id>
+```
+
+In Phase 3 every stage is a stub that only waits (`PIPELINE_STEP_DELAY_SECONDS`, default 1s) and
+never contacts the target. Ownership verification arrives in Phase 4, before any real scanner.
 
 ```bash
 make test      # backend tests (against a separate <db>_test database)
