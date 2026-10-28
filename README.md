@@ -23,8 +23,10 @@ make lab       # optional: also start the lab targets (Juice Shop, DVWA) on an i
 ```
 
 The lab targets are deliberately vulnerable apps. They run on an internal Docker network with no
-internet access and no ports on your machine; only the worker can reach them, at
-`http://juice-shop:3000` and `http://dvwa`.
+internet access and no ports published on your machine. Of VulnScope's own services, only the
+worker joins that network and can reach them, at `http://juice-shop:3000` and `http://dvwa`; the
+lab apps can also reach each other. On a native Linux Docker host, the host itself may still reach
+container IPs directly (Docker Desktop, used on Windows and macOS, doesn't allow this).
 
 | Service  | URL                          |
 |----------|------------------------------|
