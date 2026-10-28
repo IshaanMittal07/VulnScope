@@ -1,28 +1,35 @@
 """HTTP token verification: user serves a token at /.well-known/vulnscope-verify.txt.
 
 The request is made from inside the API container, next to Postgres and Redis, so it is guarded
-against server-side request forgery (SSRF): the host must resolve only to public addresses,
-redirects are never followed, no proxy is used, and the response is capped and timed out.
+against server-side request forgery (SSRF):
+- the host must resolve only to public addresses, and the connection goes to the exact address
+  that was checked (the hostname is kept for the Host header and TLS SNI, so the certificate is
+  still verified), so DNS can't answer differently a second time (DNS rebinding);
+- redirects are never followed and no proxy is used;
+- the response is capped, and the whole check, DNS included, has a deadline.
 """
 
 import ipaddress
-import socket
+import time
 from collections.abc import Callable
 from urllib.parse import urlsplit
 
+import dns.exception
+import dns.resolver
 import httpx
 
 from app.models.enums import TargetType
-from app.verification.hosts import target_host
+from app.verification.hosts import is_ip, target_host
 from app.verification.outcome import Outcome
 
 WELL_KNOWN_PATH = "/.well-known/vulnscope-verify.txt"
-TIMEOUT_SECONDS = 5.0
+DEADLINE_SECONDS = 10.0  # the whole check: DNS, connect, headers, and body
+READ_TIMEOUT_SECONDS = 3.0  # a stalled read gives up after this, then the deadline is checked
 MAX_BYTES = 1024
 _NAT64 = ipaddress.IPv6Network("64:ff9b::/96")
 
-# Resolves a host to every IP address it maps to.
-AddressLookup = Callable[[str, int], list[str]]
+# Resolves a host to every IP address it maps to, within the given number of seconds.
+AddressLookup = Callable[[str, float], list[str]]
 
 
 def token_url(target_type: TargetType, value: str) -> str:
@@ -52,9 +59,32 @@ def is_public_address(address: str) -> bool:
     return ip.is_global and not ip.is_multicast
 
 
-def lookup_addresses(host: str, port: int) -> list[str]:
-    infos = socket.getaddrinfo(host, port, proto=socket.IPPROTO_TCP)
-    return [str(info[4][0]) for info in infos]
+def lookup_addresses(host: str, timeout: float) -> list[str]:
+    """A and AAAA records via dnspython, which (unlike socket.getaddrinfo) honours a timeout."""
+    if is_ip(host):
+        return [host]
+    deadline = time.monotonic() + timeout
+    addresses: list[str] = []
+    for record_type in ("A", "AAAA"):
+        try:
+            answer = dns.resolver.resolve(
+                host, record_type, lifetime=max(deadline - time.monotonic(), 0.1)
+            )
+        except (dns.resolver.NoAnswer, dns.resolver.NXDOMAIN):
+            continue
+        addresses.extend(rdata.to_text() for rdata in answer)
+    return addresses
+
+
+def pinned_request(url: str, address: str) -> tuple[str, dict[str, str], dict[str, str]]:
+    """The URL to connect to (host replaced by the vetted address), plus the Host header and
+    TLS SNI that keep the request, and certificate verification, about the original host."""
+    parts = urlsplit(url)
+    host = parts.hostname or ""
+    literal = f"[{address}]" if ":" in address else address
+    netloc = f"{literal}:{parts.port}" if parts.port else literal
+    host_header = parts.netloc.rsplit("@", 1)[-1]  # host[:port] as the user wrote it
+    return parts._replace(netloc=netloc).geturl(), {"Host": host_header}, {"sni_hostname": host}
 
 
 def check(
@@ -63,12 +93,13 @@ def check(
     client: httpx.Client | None = None,
     lookup: AddressLookup | None = None,
 ) -> Outcome:
-    parts = urlsplit(url)
-    host = parts.hostname or ""
-    port = parts.port or (443 if parts.scheme == "https" else 80)
+    deadline = time.monotonic() + DEADLINE_SECONDS
+    host = urlsplit(url).hostname or ""
     try:
-        addresses = (lookup or lookup_addresses)(host, port)
-    except OSError:
+        addresses = (lookup or lookup_addresses)(host, DEADLINE_SECONDS)
+    except dns.exception.Timeout:
+        return Outcome.fail(f"DNS lookup of {host} timed out")
+    except (dns.exception.DNSException, OSError):
         return Outcome.fail(f"{host} does not resolve")
     blocked = sorted({a for a in addresses if not is_public_address(a)})
     if not addresses or blocked:
@@ -77,10 +108,20 @@ def check(
             "VulnScope only fetches verification tokens from public addresses"
         )
 
+    target, headers, extensions = pinned_request(url, addresses[0])
+    remaining = max(deadline - time.monotonic(), 0.1)
+    timeout = httpx.Timeout(min(READ_TIMEOUT_SECONDS, remaining), connect=remaining)
     owned = client is None
-    http = client or httpx.Client(timeout=TIMEOUT_SECONDS, trust_env=False)
+    http = client or httpx.Client(trust_env=False)
     try:
-        with http.stream("GET", url, follow_redirects=False) as response:
+        with http.stream(
+            "GET",
+            target,
+            headers=headers,
+            extensions=extensions,
+            timeout=timeout,
+            follow_redirects=False,
+        ) as response:
             if response.status_code != 200:
                 note = " (redirects are not followed)" if response.is_redirect else ""
                 return Outcome.fail(f"{url} answered HTTP {response.status_code}{note}")
@@ -89,6 +130,8 @@ def check(
                 body += chunk
                 if len(body) > MAX_BYTES:
                     return Outcome.fail(f"{url} returned more than {MAX_BYTES} bytes")
+                if time.monotonic() > deadline:  # a slow trickle can't hold the check open
+                    return Outcome.fail(f"{url} took longer than {DEADLINE_SECONDS:.0f}s")
     except httpx.HTTPError as exc:
         return Outcome.fail(f"could not fetch {url}: {type(exc).__name__}")
     finally:

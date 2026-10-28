@@ -1,6 +1,9 @@
 """The three ownership checks, with DNS and HTTP replaced by fakes: no network needed."""
 
 import socket
+import time
+from collections.abc import Iterator
+from urllib.parse import urlsplit
 
 import dns.exception
 import dns.resolver
@@ -146,7 +149,7 @@ def test_public_addresses_are_allowed(address: str) -> None:
 URL = "https://example.com/.well-known/vulnscope-verify.txt"
 
 
-def public(host: str, port: int) -> list[str]:
+def public(host: str, timeout: float) -> list[str]:
     return ["93.184.216.34"]
 
 
@@ -164,7 +167,70 @@ def test_http_serving_the_token_passes() -> None:
     client, sent = fetch_with(httpx.MockTransport(lambda r: httpx.Response(200, text=f"{TOKEN}\n")))
 
     assert http_token.check(URL, TOKEN, client, public).verified
-    assert [str(r.url) for r in sent] == [URL]
+    assert len(sent) == 1
+
+
+@pytest.mark.parametrize(
+    ("url", "address", "connect_to", "host_header"),
+    [
+        (
+            URL,
+            "93.184.216.34",
+            "https://93.184.216.34/.well-known/vulnscope-verify.txt",
+            "example.com",
+        ),
+        (
+            "https://shop.example.com:8443/.well-known/vulnscope-verify.txt",
+            "93.184.216.34",
+            "https://93.184.216.34:8443/.well-known/vulnscope-verify.txt",
+            "shop.example.com:8443",
+        ),
+        (
+            "http://example.com/.well-known/vulnscope-verify.txt",
+            "2606:2800:220:1:248:1893:25c8:1946",
+            "http://[2606:2800:220:1:248:1893:25c8:1946]/.well-known/vulnscope-verify.txt",
+            "example.com",
+        ),
+    ],
+)
+def test_http_connects_to_the_vetted_address_not_the_name(
+    url: str, address: str, connect_to: str, host_header: str
+) -> None:
+    """DNS rebinding: the request goes to the exact address the guard approved, so a second DNS
+    answer can't redirect it. The hostname stays in the Host header and TLS SNI, so the server
+    sees the right site and its certificate is still checked against the real name."""
+    client, sent = fetch_with(httpx.MockTransport(lambda r: httpx.Response(200, text=TOKEN)))
+
+    assert http_token.check(url, TOKEN, client, lambda host, timeout: [address]).verified
+
+    (request,) = sent
+    assert str(request.url) == connect_to
+    assert request.headers["host"] == host_header
+    assert request.extensions["sni_hostname"] == urlsplit(url).hostname
+
+
+def test_http_slow_trickle_hits_the_deadline(monkeypatch: pytest.MonkeyPatch) -> None:
+    """One byte every few seconds would reset a per-read timeout forever; the deadline stops it."""
+    clock = [1000.0]
+    monkeypatch.setattr(time, "monotonic", lambda: clock[0])  # undone after the test
+
+    class Trickle(httpx.SyncByteStream):
+        def __iter__(self) -> Iterator[bytes]:
+            for _ in range(500):
+                clock[0] += 4.0  # each byte arrives 4 s after the last
+                yield b"x"
+
+    client, _ = fetch_with(httpx.MockTransport(lambda r: httpx.Response(200, stream=Trickle())))
+
+    outcome = http_token.check(URL, TOKEN, client, public)
+
+    assert not outcome.verified
+    assert "took longer than 10s" in outcome.reason
+    assert clock[0] - 1000.0 <= http_token.DEADLINE_SECONDS + 4.0
+
+
+def test_ip_hosts_need_no_dns_lookup() -> None:
+    assert http_token.lookup_addresses("203.0.113.7", 1.0) == ["203.0.113.7"]
 
 
 @pytest.mark.parametrize(
@@ -214,7 +280,7 @@ def test_http_hosts_resolving_to_private_addresses_are_never_fetched(
 ) -> None:
     client, sent = fetch_with(httpx.MockTransport(lambda r: httpx.Response(200, text=TOKEN)))
 
-    outcome = http_token.check(URL, TOKEN, client, lambda host, port: addresses)
+    outcome = http_token.check(URL, TOKEN, client, lambda host, timeout: addresses)
 
     assert not outcome.verified
     assert "non-public address" in outcome.reason
@@ -222,7 +288,7 @@ def test_http_hosts_resolving_to_private_addresses_are_never_fetched(
 
 
 def test_http_unresolvable_host_fails_cleanly() -> None:
-    def lookup(host: str, port: int) -> list[str]:
+    def lookup(host: str, timeout: float) -> list[str]:
         raise socket.gaierror(socket.EAI_NONAME, "Name or service not known")
 
     client, sent = fetch_with(httpx.MockTransport(lambda r: httpx.Response(200, text=TOKEN)))
