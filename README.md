@@ -27,6 +27,8 @@ internet access and no ports published on your machine. Of VulnScope's own servi
 worker joins that network and can reach them, at `http://juice-shop:3000` and `http://dvwa`; the
 lab apps can also reach each other. On a native Linux Docker host, the host itself may still reach
 container IPs directly (Docker Desktop, used on Windows and macOS, doesn't allow this).
+DVWA's database is kept in memory, so `make lab` recreates its tables on every start (DVWA's
+default login is `admin` / `password`).
 
 | Service  | URL                          |
 |----------|------------------------------|

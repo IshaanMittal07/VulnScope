@@ -23,6 +23,8 @@ lab: .env ## Start the stack plus the lab targets (Juice Shop, DVWA) on an inter
 	@$(LAB) up -d --build --wait || { \
 		echo; echo "The stack did not become healthy. See the error with: docker compose logs api"; \
 		echo "If it says 'password authentication failed', run: make reset-db"; exit 1; }
+	@# DVWA's database starts empty each time; create its tables from inside the lab network.
+	@$(LAB) exec -T worker python - < scripts/lab/init_dvwa.py
 
 down: ## Stop the stack (and the lab targets, if running)
 	$(LAB) down
