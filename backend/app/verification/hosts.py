@@ -29,6 +29,10 @@ def is_hostname(value: str) -> bool:
 
 def value_error(target_type: TargetType, value: str) -> str | None:
     """Why `value` isn't a valid target of this type, or None if it is."""
+    # urlsplit silently drops tabs and newlines, so "http://exa\nmple.com" would pass as
+    # example.com while the stored value keeps the newline. Reject them up front.
+    if any(char.isspace() or not char.isprintable() for char in value):
+        return "value must not contain spaces or control characters"
     if target_type is TargetType.URL:
         try:
             parts = urlsplit(value)

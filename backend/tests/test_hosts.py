@@ -34,6 +34,13 @@ def test_valid_values_and_their_host(target_type: TargetType, value: str, host: 
         (TargetType.URL, "http://admin:hunter2@example.com"),  # credentials
         (TargetType.URL, "http://example.com:99999"),  # bad port
         (TargetType.URL, "http://exa_mple.com"),
+        (TargetType.URL, "http://exa\nmple.com"),  # urlsplit would drop the newline
+        (TargetType.URL, "http://example.com\t/"),
+        (TargetType.URL, "http://example.com/a b"),
+        (TargetType.URL, "http://example.com/\x00"),
+        (TargetType.DOMAIN, " example.com"),
+        (TargetType.IP, "203.0.113.7\r\n"),
+        (TargetType.REPO, "https://github.com/acme/app\n"),
         (TargetType.DOMAIN, "https://example.com"),
         (TargetType.DOMAIN, "example.com/path"),
         (TargetType.DOMAIN, "example.com:443"),
