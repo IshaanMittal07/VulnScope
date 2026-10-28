@@ -48,3 +48,13 @@ class OwnershipVerificationRead(ORMSchema):
     verified_at: datetime | None
     used_at: datetime | None
     created_at: datetime
+
+
+class VerificationCreate(BaseModel):
+    method: VerificationMethod
+
+
+class VerificationChallenge(OwnershipVerificationRead):
+    """A new challenge: the verification, plus what the user must do to pass it."""
+
+    instructions: str
