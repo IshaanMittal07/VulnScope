@@ -111,3 +111,9 @@ def client(session_factory: sessionmaker[Session], sync_queue: Queue) -> Iterato
     """The real app, wired to the test database and the synchronous pipeline queue."""
     with TestClient(app) as test_client:
         yield test_client
+
+
+@pytest.fixture
+def lab_mode(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Turn LAB_MODE on for this test, whatever .env says."""
+    monkeypatch.setattr(get_settings(), "lab_mode", True)

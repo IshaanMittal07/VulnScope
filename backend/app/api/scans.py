@@ -8,6 +8,7 @@ from redis.exceptions import RedisError
 from app.api.deps import DbSession, PipelineQueue
 from app.models import Scan, Target
 from app.schemas import ScanCreate, ScanRead
+from app.verification import service
 from app.workers import pipeline, tasks
 
 router = APIRouter(prefix="/scans", tags=["scans"])
@@ -19,20 +20,30 @@ def create_scan(
 ) -> ScanRead:
     """Create a scan and queue its pipeline. 202: the work happens in the background.
 
-    TODO(Phase 4, #6): return 403 unless the target's ownership is verified. Until then every
-    stage is a stub that never contacts the target.
+    Authorization first: the target's ownership must be verified. Each verification authorizes
+    exactly one scan; without an unused one this is 403 and no scan is created.
     """
-    if db.get(Target, body.target_id) is None:
+    target = db.get(Target, body.target_id)
+    if target is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Target not found")
+    verification = service.claim_for_scan(db, target)
+    if verification is None:
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN,
+            "Target ownership is not verified. Create and pass a verification first "
+            f"(POST /targets/{target.id}/verifications); each one authorizes a single scan.",
+        )
 
-    scan = Scan(target_id=body.target_id)
+    scan = Scan(target_id=target.id)
     db.add(scan)
-    db.commit()  # The worker must be able to read the scan before its first job runs.
+    db.commit()  # Spends the verification and creates the scan together, before any job runs.
     try:
         tasks.enqueue_stage(queue, tasks.run_scan, str(scan.id))
     except RedisError as exc:
-        # Don't leave a scan sitting in "queued" that no worker will ever pick up.
+        # Don't leave a scan sitting in "queued" that no worker will ever pick up. No scan ran,
+        # so give the verification back.
         pipeline.fail(scan, f"could not queue the pipeline: {type(exc).__name__}: {exc}")
+        verification.used_at = None
         db.commit()
         raise HTTPException(
             status.HTTP_503_SERVICE_UNAVAILABLE,
