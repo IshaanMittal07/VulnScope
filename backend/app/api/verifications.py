@@ -45,10 +45,10 @@ def check_verification(
 ) -> OwnershipVerificationRead:
     """Run the check. 200 once verified; 409 with the reason if not (retry until it expires)."""
     target = _target(db, target_id)
-    verification = db.get(OwnershipVerification, verification_id, with_for_update=True)
+    verification = db.get(OwnershipVerification, verification_id)
     if verification is None or verification.target_id != target.id:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Verification not found")
-    outcome = service.check_challenge(verification, target)
+    outcome = service.check_challenge(db, verification, target)
     db.commit()  # keep a status change (verified or expired) even when answering 409
     if not outcome.verified:
         raise HTTPException(status.HTTP_409_CONFLICT, outcome.reason)

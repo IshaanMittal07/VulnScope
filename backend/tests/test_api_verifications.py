@@ -7,10 +7,12 @@ from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy import Engine, text
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.config import Settings, get_settings
-from app.models import OwnershipVerification
+from app.models import OwnershipVerification, Target
+from app.models.enums import DataType, TargetType, VerificationMethod, VerificationStatus
 from app.verification import http_token, service
 from app.verification.outcome import Outcome
 
@@ -225,3 +227,91 @@ def test_lab_mode_is_off_unless_configured(monkeypatch: pytest.MonkeyPatch) -> N
     monkeypatch.delenv("LAB_MODE", raising=False)
 
     assert Settings(_env_file=None).lab_mode is False
+
+
+# --- no row lock while the network check runs -------------------------------------------------
+
+
+def _committed_challenge(engine: Engine) -> tuple[sessionmaker[Session], uuid.UUID, uuid.UUID]:
+    """A real, committed target + pending http_token challenge (other connections can see it)."""
+    factory = sessionmaker(bind=engine, expire_on_commit=False)
+    with factory() as setup:
+        target = Target(
+            name="lock",
+            target_type=TargetType.DOMAIN,
+            value="example.com",
+            data_types=[DataType.GENERAL],
+        )
+        verification = service.create_challenge(target, VerificationMethod.HTTP_TOKEN)
+        setup.add(verification)
+        setup.commit()
+        return factory, target.id, verification.id
+
+
+def _cleanup(factory: sessionmaker[Session], target_id: uuid.UUID) -> None:
+    with factory() as cleanup:
+        stored = cleanup.get(Target, target_id)
+        if stored is not None:
+            cleanup.delete(stored)
+            cleanup.commit()
+
+
+def test_check_holds_no_row_lock_during_the_network_call(
+    engine: Engine, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    factory, target_id, verification_id = _committed_challenge(engine)
+    lock_free: list[bool] = []
+
+    def network_check(url: str, token: str) -> Outcome:
+        # Another connection must be able to lock the row right now (NOWAIT fails if it can't).
+        with engine.connect() as other:
+            other.execute(
+                text("SELECT id FROM ownership_verifications WHERE id = :id FOR UPDATE NOWAIT"),
+                {"id": verification_id},
+            )
+            lock_free.append(True)
+            other.rollback()
+        return Outcome.ok("served")
+
+    monkeypatch.setattr(http_token, "check", network_check)
+    try:
+        with factory() as db:
+            verification = db.get(OwnershipVerification, verification_id)
+            target = db.get(Target, target_id)
+            assert verification is not None and target is not None
+            outcome = service.check_challenge(db, verification, target)
+            db.commit()
+        assert lock_free == [True]
+        assert outcome.verified
+    finally:
+        _cleanup(factory, target_id)
+
+
+def test_check_rereads_the_row_after_the_network_call(
+    engine: Engine, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """If the verification was used while the check ran, the stale copy must not be trusted."""
+    factory, target_id, verification_id = _committed_challenge(engine)
+
+    def network_check(url: str, token: str) -> Outcome:
+        with factory() as other:
+            # Fail fast instead of hanging the suite if the row is (wrongly) locked right now.
+            other.execute(text("SET LOCAL lock_timeout = '2s'"))
+            stored = other.get(OwnershipVerification, verification_id)
+            assert stored is not None
+            stored.status = VerificationStatus.VERIFIED
+            stored.used_at = datetime.now(UTC)
+            other.commit()
+        return Outcome.ok("served")
+
+    monkeypatch.setattr(http_token, "check", network_check)
+    try:
+        with factory() as db:
+            verification = db.get(OwnershipVerification, verification_id)
+            target = db.get(Target, target_id)
+            assert verification is not None and target is not None
+            outcome = service.check_challenge(db, verification, target)
+        assert not outcome.verified
+        assert "already used" in outcome.reason
+    finally:
+        _cleanup(factory, target_id)

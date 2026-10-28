@@ -10,6 +10,8 @@ POST /scans), which marks it used.
 import secrets
 from datetime import UTC, datetime, timedelta
 
+from sqlalchemy.orm import Session
+
 from app.config import get_settings
 from app.models import OwnershipVerification, Target
 from app.models.enums import TargetType, VerificationMethod, VerificationStatus
@@ -89,8 +91,8 @@ def run_check(verification: OwnershipVerification, target: Target) -> Outcome:
     return lab.check(host, get_settings().lab_mode)
 
 
-def check_challenge(verification: OwnershipVerification, target: Target) -> Outcome:
-    """Run the challenge's check and update its status. Caller commits."""
+def _settled(verification: OwnershipVerification) -> Outcome | None:
+    """The answer when no check is needed (or allowed): already used, verified, or expired."""
     now = datetime.now(UTC)
     if verification.used_at is not None:
         return Outcome.fail("this verification was already used for a scan; create a new one")
@@ -99,8 +101,26 @@ def check_challenge(verification: OwnershipVerification, target: Target) -> Outc
     if verification.status is VerificationStatus.EXPIRED or now >= verification.expires_at:
         verification.status = VerificationStatus.EXPIRED
         return Outcome.fail("this verification expired; create a new one")
+    return None
+
+
+def check_challenge(db: Session, verification: OwnershipVerification, target: Target) -> Outcome:
+    """Run the challenge's check and record the result. Caller commits.
+
+    The DNS or HTTP check can take seconds, so it runs with no transaction open and no row lock
+    held. Afterwards the row is locked and re-read, because another request may have used,
+    expired, or verified it in the meantime.
+    """
+    settled = _settled(verification)
+    if settled is not None:
+        return settled
+    db.commit()  # end the transaction: hold nothing while waiting on the network
     outcome = run_check(verification, target)
+    db.refresh(verification, with_for_update=True)
+    settled = _settled(verification)
+    if settled is not None:
+        return settled
     if outcome.verified:
         verification.status = VerificationStatus.VERIFIED
-        verification.verified_at = now
+        verification.verified_at = datetime.now(UTC)
     return outcome
