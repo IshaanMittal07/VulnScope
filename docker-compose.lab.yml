@@ -1,16 +1,31 @@
 # Lab targets: deliberately vulnerable apps for testing VulnScope. Start them with `make lab`.
 #
-# They sit on an internal network: no internet access and no ports on the host. Only the worker,
-# which will run the scanners (Phase 5), joins that network, so nothing else can reach them.
-# Images are pinned by digest so the lab never changes underneath the tests.
+# They sit on an internal network with no internet access and no ports published on the host.
+# Of VulnScope's own services, only the worker (which will run the scanners, Phase 5) joins it.
+# Images are pinned by multi-platform digest so the lab never changes underneath the tests.
 services:
   juice-shop:
     image: bkimminich/juice-shop:v20.3.0@sha256:cea5a4af4aacee498c491491af0408934ec81d004035c0a02ef3e54395e3bf27
     networks: [lab]
 
   dvwa:
-    # Unmaintained since 2018, which is fine for an intentionally vulnerable app on a sealed network.
-    image: vulnerables/web-dvwa@sha256:dae203fe11646a86937bf04db0079adef295f426da68a92b40e3b181f337daa7
+    # The maintained official image (amd64 + arm64). It needs its own database, below.
+    image: ghcr.io/digininja/dvwa:latest@sha256:8029450682bd70e2e8cd1ffe8e46dd1885ff2a913296091cebfa8ba0a7d36498
+    environment:
+      DB_SERVER: dvwa-db
+    depends_on: [dvwa-db]
+    networks: [lab]
+
+  dvwa-db:
+    image: mariadb:10.11@sha256:d769e37960821dfdcf096954f6e7ac89f747e116c1bba98e48edd265dfc7deae
+    # DVWA's built-in defaults. Lab-only credentials for a deliberately vulnerable app.
+    environment:
+      MYSQL_ROOT_PASSWORD: dvwa
+      MYSQL_DATABASE: dvwa
+      MYSQL_USER: dvwa
+      MYSQL_PASSWORD: p@ssw0rd
+    # Kept in memory: a fresh database on every start, and nothing left behind on disk.
+    tmpfs: [/var/lib/mysql]
     networks: [lab]
 
   worker:
