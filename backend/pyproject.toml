@@ -12,6 +12,8 @@ dependencies = [
     "alembic>=1.13",
     "rq>=2.12",
     "redis>=6.0",
+    "dnspython>=2.7",
+    "httpx>=0.28",
 ]
 
 [dependency-groups]
