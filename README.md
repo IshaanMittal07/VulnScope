@@ -19,7 +19,12 @@ Requires Docker (with Compose), [uv](https://docs.astral.sh/uv/), and Make.
 make up        # creates .env from .env.example on first run, then builds and starts the stack
                # (the api container applies database migrations before it starts)
 make seed      # optional: add sample Juice Shop data to browse
+make lab       # optional: also start the lab targets (Juice Shop, DVWA) on an internal network
 ```
+
+The lab targets are deliberately vulnerable apps. They run on an internal Docker network with no
+internet access and no ports on your machine; only the worker can reach them, at
+`http://juice-shop:3000` and `http://dvwa`.
 
 | Service  | URL                          |
 |----------|------------------------------|

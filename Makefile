@@ -1,10 +1,11 @@
-.PHONY: help up down logs migrate reset-db revision psql seed test lint format
+.PHONY: help up lab down logs migrate reset-db revision psql seed test lint format
 
 # Load POSTGRES_* from .env so host-side commands can reach the compose database.
 -include .env
 export
 
 BACKEND := cd backend &&
+LAB := docker compose -f docker-compose.yml -f docker-compose.lab.yml
 HOST_DB := postgresql+psycopg://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@localhost:5432
 
 help: ## List targets
@@ -18,8 +19,13 @@ up: .env ## Build and start the stack, and wait until it is healthy
 		echo; echo "The stack did not become healthy. See the error with: docker compose logs api"; \
 		echo "If it says 'password authentication failed', run: make reset-db"; exit 1; }
 
-down: ## Stop the stack
-	docker compose down
+lab: .env ## Start the stack plus the lab targets (Juice Shop, DVWA) on an internal network
+	@$(LAB) up -d --build --wait || { \
+		echo; echo "The stack did not become healthy. See the error with: docker compose logs api"; \
+		echo "If it says 'password authentication failed', run: make reset-db"; exit 1; }
+
+down: ## Stop the stack (and the lab targets, if running)
+	$(LAB) down
 
 logs: ## Follow service logs
 	docker compose logs -f
