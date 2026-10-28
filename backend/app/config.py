@@ -12,7 +12,9 @@ class Settings(BaseSettings):
     app_env: str = "development"
     database_url: str = "postgresql+psycopg://vulnscope:vulnscope@localhost:5432/vulnscope"
     redis_url: str = "redis://localhost:6379/0"
-    lab_mode: bool = True
+    # Lets the local lab targets (Juice Shop, DVWA) be verified without proof of ownership. Off
+    # unless switched on: .env.example turns it on for development.
+    lab_mode: bool = False
 
     # RQ queue that runs the pipeline stages (app/workers).
     pipeline_queue: str = "pipeline"
