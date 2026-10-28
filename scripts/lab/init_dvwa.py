@@ -21,8 +21,10 @@ _TOKEN = re.compile(r"name='user_token' value='([0-9a-f]+)'")
 
 
 def _session() -> urllib.request.OpenerDirector:
+    # ProxyHandler({}) ignores any http_proxy in the environment: "dvwa" only resolves inside
+    # the lab network, so a proxy could never reach it.
     cookies = urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar())
-    return urllib.request.build_opener(cookies)
+    return urllib.request.build_opener(urllib.request.ProxyHandler({}), cookies)
 
 
 def _post_form(
