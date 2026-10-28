@@ -57,11 +57,15 @@ def create_database() -> bool:
 def main(reset: bool) -> int:
     deadline = time.monotonic() + DEADLINE_SECONDS
     last_problem = "no answer"
+    # Probe only until this run starts setting up: a failed attempt can leave DVWA's users table
+    # behind, and a later probe would then mistake the half-built database for a finished one.
+    setup_started = False
     while time.monotonic() < deadline:
         try:
-            if not reset and not needs_setup():
+            if not reset and not setup_started and not needs_setup():
                 print("DVWA is already set up; leaving its data alone.")
                 return 0
+            setup_started = True
             if create_database():
                 print("DVWA database created (log in at http://dvwa as admin / password).")
                 return 0
