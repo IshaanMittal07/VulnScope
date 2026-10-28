@@ -1,4 +1,4 @@
-.PHONY: help up lab down logs migrate reset-db revision psql seed test lint format
+.PHONY: help up lab lab-reset-dvwa down logs migrate reset-db revision psql seed test lint format
 
 # Load POSTGRES_* from .env so host-side commands can reach the compose database.
 -include .env
@@ -9,7 +9,7 @@ LAB := docker compose -f docker-compose.yml -f docker-compose.lab.yml
 HOST_DB := postgresql+psycopg://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@localhost:5432
 
 help: ## List targets
-	@grep -hE '^[a-z-]+:.*## ' $(firstword $(MAKEFILE_LIST)) | awk -F ':.*## ' '{printf "  %-9s %s\n", $$1, $$2}'
+	@grep -hE '^[a-z-]+:.*## ' $(firstword $(MAKEFILE_LIST)) | awk -F ':.*## ' '{printf "  %-15s %s\n", $$1, $$2}'
 
 .env:
 	cp .env.example .env
@@ -23,8 +23,11 @@ lab: .env ## Start the stack plus the lab targets (Juice Shop, DVWA) on an inter
 	@$(LAB) up -d --build --wait || { \
 		echo; echo "The stack did not become healthy. See the error with: docker compose logs api"; \
 		echo "If it says 'password authentication failed', run: make reset-db"; exit 1; }
-	@# DVWA's database starts empty each time; create its tables from inside the lab network.
+	@# DVWA's in-memory database is empty after it starts; set it up from inside the lab network.
 	@$(LAB) exec -T worker python - < scripts/lab/init_dvwa.py
+
+lab-reset-dvwa: ## Wipe DVWA's database and recreate it (the lab must be running)
+	@$(LAB) exec -T worker python - --reset < scripts/lab/init_dvwa.py
 
 down: ## Stop the stack (and the lab targets, if running)
 	$(LAB) down

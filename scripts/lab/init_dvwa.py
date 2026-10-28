@@ -1,52 +1,75 @@
-"""Create DVWA's database tables: its "Setup DVWA -> Create / Reset Database" step.
+"""Set up DVWA's database: its "Setup DVWA -> Create / Reset Database" step.
 
-DVWA's database lives in memory, so it starts empty every time the lab starts, and DVWA can't be
-used until this has run. `make lab` runs it inside the worker container, the only VulnScope
-service on the lab network. It uses only the standard library because the lab has no internet.
+DVWA's database lives in memory, so it is empty whenever dvwa-db starts, and DVWA can't be used
+until its tables exist. `make lab` runs this inside the worker container, the only VulnScope
+service on the lab network. By default it only sets up a database that is still empty, so running
+`make lab` again never wipes changes made in DVWA; `--reset` (`make lab-reset-dvwa`) always does.
+It uses only the standard library because the lab has no internet.
 """
 
 import http.cookiejar
 import re
+import secrets
 import sys
 import time
 import urllib.parse
 import urllib.request
 
-SETUP_URL = "http://dvwa/setup.php"
+BASE_URL = "http://dvwa"
 DEADLINE_SECONDS = 120  # DVWA and its database can take a while to start
+_TOKEN = re.compile(r"name='user_token' value='([0-9a-f]+)'")
 
 
-def create_database() -> str:
-    """One attempt. Returns DVWA's response text, or raises OSError if it isn't up yet."""
+def _session() -> urllib.request.OpenerDirector:
     cookies = urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar())
-    opener = urllib.request.build_opener(cookies)
-    page = opener.open(SETUP_URL, timeout=10).read().decode("utf-8", "replace")
-    token = re.search(r"name='user_token' value='([0-9a-f]+)'", page)
+    return urllib.request.build_opener(cookies)
+
+
+def _post_form(
+    opener: urllib.request.OpenerDirector, path: str, form: dict[str, str]
+) -> tuple[str, str]:
+    """GET the page for its CSRF token, POST the form. Returns (final URL, page text)."""
+    page = opener.open(f"{BASE_URL}{path}", timeout=10).read().decode("utf-8", "replace")
+    token = _TOKEN.search(page)
     if token is None:
-        raise OSError("setup page has no CSRF token yet")
-    form = {"create_db": "Create / Reset Database", "user_token": token.group(1)}
-    body = urllib.parse.urlencode(form).encode()
-    result = opener.open(SETUP_URL, data=body, timeout=60).read().decode("utf-8", "replace")
-    return " ".join(re.sub(r"<[^>]+>", " ", result).split())
+        raise OSError(f"{path} has no CSRF token yet")
+    body = urllib.parse.urlencode({**form, "user_token": token.group(1)}).encode()
+    response = opener.open(f"{BASE_URL}{path}", data=body, timeout=60)
+    text = response.read().decode("utf-8", "replace")
+    return response.geturl(), " ".join(re.sub(r"<[^>]+>", " ", text).split())
 
 
-def main() -> int:
+def needs_setup() -> bool:
+    """Log in as a random, non-existent user. Without tables DVWA redirects to setup.php; with
+    them it answers "Login failed". Real accounts and passwords are never touched."""
+    form = {"username": f"setup-probe-{secrets.token_hex(4)}", "password": "x", "Login": "Login"}
+    url, _ = _post_form(_session(), "/login.php", form)
+    return url.endswith("/setup.php")
+
+
+def create_database() -> bool:
+    _, text = _post_form(_session(), "/setup.php", {"create_db": "Create / Reset Database"})
+    return "Setup successful" in text
+
+
+def main(reset: bool) -> int:
     deadline = time.monotonic() + DEADLINE_SECONDS
     last_problem = "no answer"
     while time.monotonic() < deadline:
         try:
-            text = create_database()
-        except OSError as exc:
-            last_problem = str(exc)
-        else:
-            if "Setup successful" in text:
+            if not reset and not needs_setup():
+                print("DVWA is already set up; leaving its data alone.")
+                return 0
+            if create_database():
                 print("DVWA database created (log in at http://dvwa as admin / password).")
                 return 0
             last_problem = "DVWA answered, but setup did not succeed (database not ready?)"
+        except OSError as exc:
+            last_problem = str(exc)
         time.sleep(3)
     print(f"Could not set up DVWA within {DEADLINE_SECONDS}s: {last_problem}", file=sys.stderr)
     return 1
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(main(reset="--reset" in sys.argv[1:]))
