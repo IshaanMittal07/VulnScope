@@ -4,7 +4,13 @@ from app.schemas.audit import AuditFindingRead, AuditRunRead, PatchLogRead
 from app.schemas.finding import CveCacheRead, FindingRead, PolicyMappingRead
 from app.schemas.plan import ProtectionPlanRead
 from app.schemas.scan import ScanCreate, ScanJobRead, ScanRead
-from app.schemas.target import OwnershipVerificationRead, TargetCreate, TargetRead
+from app.schemas.target import (
+    OwnershipVerificationRead,
+    TargetCreate,
+    TargetRead,
+    VerificationChallenge,
+    VerificationCreate,
+)
 
 __all__ = [
     "AuditFindingRead",
@@ -20,4 +26,6 @@ __all__ = [
     "ScanRead",
     "TargetCreate",
     "TargetRead",
+    "VerificationChallenge",
+    "VerificationCreate",
 ]
