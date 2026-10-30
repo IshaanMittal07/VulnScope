@@ -32,6 +32,7 @@ class ScanJobRead(ORMSchema):
     scanner: str
     status: JobStatus
     exit_code: int | None
+    finding_count: int | None
     error_message: str | None
     started_at: datetime | None
     finished_at: datetime | None
