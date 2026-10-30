@@ -5,8 +5,8 @@ it handles. It scans the service with established open-source tools, maps the fi
 security frameworks, and generates a protection plan built only from vetted cryptographic
 primitives. The generated code then goes through an automated audit loop before the final report.
 
-> **Status:** early development (Phase 3, job queue and pipeline skeleton; the pipeline stages are
-> still stubs). See [docs/IMPLEMENTATION_GUIDE.md](docs/IMPLEMENTATION_GUIDE.md).
+> **Status:** early development (Phase 4, lab targets and ownership verification; the pipeline
+> stages are still stubs). See [docs/IMPLEMENTATION_GUIDE.md](docs/IMPLEMENTATION_GUIDE.md).
 
 > **Authorization:** only scan systems you own or have written permission to test. VulnScope
 > refuses to scan a target until you verify ownership of it.
@@ -38,24 +38,40 @@ wipes and recreates it.
 | Frontend | http://localhost:5173        |
 | Worker   | no URL; `docker compose logs -f worker` shows the pipeline jobs it runs |
 
-### Try the pipeline
+### Prove ownership, then scan
 
-Register a target, start a scan, then poll it. A worker runs the stages in the background, so
-repeating the last command shows the state advance
-`queued -> scanning -> analyzing -> planning -> auditing -> reporting -> complete`.
+VulnScope won't scan a target until you prove you control it: `POST /scans` answers **403** until
+then. Each passed verification authorizes **one** scan and expires 24 hours after it was created.
+
+| Method | How you prove it |
+|--------|------------------|
+| `dns_txt` | a TXT record at `_vulnscope.<domain>` containing the token |
+| `http_token` | the token served at `/.well-known/vulnscope-verify.txt` on the target (public addresses only) |
+| `lab` | no token: only the lab hosts `juice-shop` and `dvwa`, and only while `LAB_MODE=true` (as in `.env.example`) |
+
+Try it with the lab target. A worker runs the stages in the background, so repeating the last
+command shows the state advance `queued -> scanning -> analyzing -> planning -> auditing -> reporting -> complete`.
 
 ```bash
 curl -s -X POST http://localhost:8000/targets -H 'Content-Type: application/json' \
   -d '{"name": "Juice Shop (lab)", "target_type": "url", "value": "http://juice-shop:3000", "data_types": ["personal"]}'
-# copy the "id" from the response into <target-id>:
+# copy the "id" into <target-id>, then ask for a lab verification:
+curl -s -X POST http://localhost:8000/targets/<target-id>/verifications -H 'Content-Type: application/json' \
+  -d '{"method": "lab"}'
+# copy the verification's "id" into <verification-id>, then check it ("status": "verified"):
+curl -s -X POST http://localhost:8000/targets/<target-id>/verifications/<verification-id>/check
+# now the scan is allowed (202); copy its "id" into <scan-id>, then repeat:
 curl -s -X POST http://localhost:8000/scans -H 'Content-Type: application/json' \
   -d '{"target_id": "<target-id>"}'
-# copy the scan's "id" into <scan-id>, then repeat:
 curl -s http://localhost:8000/scans/<scan-id>
 ```
 
-In Phase 3 every stage is a stub that only waits (`PIPELINE_STEP_DELAY_SECONDS`, default 1s) and
-never contacts the target. Ownership verification arrives in Phase 4, before any real scanner.
+For `dns_txt` and `http_token`, the response to the second command includes the token and
+`instructions` saying exactly where to publish it; run the check once it's in place. A failed
+check answers 409 with the reason, and you can retry until the verification expires.
+
+The pipeline stages are still stubs that only wait (`PIPELINE_STEP_DELAY_SECONDS`, default 1s) and
+never contact the target; real scanners arrive in Phase 5.
 
 ```bash
 make test      # backend tests (against a separate <db>_test database)

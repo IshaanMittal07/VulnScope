@@ -13,11 +13,14 @@ from app.models import Scan
 from app.models.enums import PipelineState
 from app.workers import queue as pipeline_queue
 from app.workers import recovery, tasks
-from tests.api_helpers import create_target, start_scan
+from tests.api_helpers import create_verified_target, start_scan
+
+# Every scan here needs a verified target; lab verification is the quickest kind.
+pytestmark = pytest.mark.usefixtures("lab_mode")
 
 
 def test_scan_runs_the_whole_pipeline(client: TestClient) -> None:
-    target = create_target(client)
+    target = create_verified_target(client)
 
     response = start_scan(client, target["id"])
 
@@ -41,7 +44,7 @@ def test_polling_shows_every_state(client: TestClient, monkeypatch: pytest.Monke
         seen.append(client.get(f"/scans/{scan.id}").json()["state"])
 
     monkeypatch.setattr(tasks, "placeholder_work", poll_during_stage)
-    scan = start_scan(client, create_target(client)["id"]).json()
+    scan = start_scan(client, create_verified_target(client)["id"]).json()
     seen.append(client.get(f"/scans/{scan['id']}").json()["state"])
 
     assert seen == ["scanning", "analyzing", "planning", "auditing", "reporting", "complete"]
@@ -55,7 +58,7 @@ def test_failed_stage_is_visible_through_the_api(
             raise RuntimeError("semgrep crashed")
 
     monkeypatch.setattr(tasks, "placeholder_work", broken_audit)
-    scan = start_scan(client, create_target(client)["id"]).json()
+    scan = start_scan(client, create_verified_target(client)["id"]).json()
 
     polled = client.get(f"/scans/{scan['id']}").json()
     assert polled["state"] == "failed"
@@ -75,7 +78,7 @@ def test_scan_when_queue_is_down_is_503_and_marked_failed(
             raise RedisConnectionError("Error 111 connecting to redis:6379. Connection refused.")
 
     monkeypatch.setattr(pipeline_queue, "get_queue", UnreachableQueue)
-    target = create_target(client)
+    target = create_verified_target(client)
 
     response = start_scan(client, target["id"])
 
@@ -104,7 +107,7 @@ def test_first_stage_job_carries_the_recovery_callback(
     stored = Queue("pipeline", connection=fakeredis.FakeRedis())  # async: the job waits in Redis
     monkeypatch.setattr(pipeline_queue, "get_queue", lambda: stored)
 
-    scan = start_scan(client, create_target(client)["id"]).json()
+    scan = start_scan(client, create_verified_target(client)["id"]).json()
 
     assert scan["state"] == "queued"
     (job,) = stored.get_jobs()

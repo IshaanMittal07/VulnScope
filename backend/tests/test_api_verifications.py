@@ -17,11 +17,6 @@ from app.verification import http_token, service
 from app.verification.outcome import Outcome
 
 
-@pytest.fixture
-def lab_mode(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(get_settings(), "lab_mode", True)
-
-
 def make_target(
     client: TestClient, target_type: str = "url", value: str = "http://juice-shop:3000"
 ) -> str:

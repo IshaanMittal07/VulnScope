@@ -10,6 +10,7 @@ POST /scans), which marks it used.
 import secrets
 from datetime import UTC, datetime, timedelta
 
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
@@ -124,3 +125,31 @@ def check_challenge(db: Session, verification: OwnershipVerification, target: Ta
         verification.status = VerificationStatus.VERIFIED
         verification.verified_at = datetime.now(UTC)
     return outcome
+
+
+def claim_for_scan(db: Session, target: Target) -> OwnershipVerification | None:
+    """Find a verification that authorizes one scan of `target`, and mark it used.
+
+    It must be verified, unexpired, and unused; a lab verification only counts while LAB_MODE is
+    still on. The row is locked (FOR UPDATE SKIP LOCKED), so two concurrent requests can never
+    spend the same verification: the second skips it and gets another one, or None. The caller
+    commits, in the same transaction that creates the scan.
+    """
+    query = (
+        select(OwnershipVerification)
+        .where(
+            OwnershipVerification.target_id == target.id,
+            OwnershipVerification.status == VerificationStatus.VERIFIED,
+            OwnershipVerification.used_at.is_(None),
+            OwnershipVerification.expires_at > datetime.now(UTC),
+        )
+        .order_by(OwnershipVerification.verified_at)
+        .limit(1)
+        .with_for_update(skip_locked=True)
+    )
+    if not get_settings().lab_mode:
+        query = query.where(OwnershipVerification.method != VerificationMethod.LAB)
+    verification = db.scalars(query).first()
+    if verification is not None:
+        verification.used_at = datetime.now(UTC)
+    return verification
