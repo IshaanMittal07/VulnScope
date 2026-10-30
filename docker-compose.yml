@@ -30,12 +30,12 @@ services:
       start_interval: 2s
 
   worker:
-    build: ./backend
-    # Runs pipeline jobs from the "pipeline" queue. Migrations belong to the api alone: skip the
-    # image entrypoint (backend/entrypoint.sh) so the worker never migrates, and wait for a healthy
-    # api, which has already brought the schema up to date.
-    entrypoint: []
-    command: python -m app.workers.worker
+    # Runs pipeline jobs from the "pipeline" queue, including the scanners, which are installed in
+    # this image only. Migrations belong to the api alone: Dockerfile.worker has no migration
+    # entrypoint, and the worker waits for a healthy api, which has already updated the schema.
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.worker
     env_file: .env
     environment:
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
