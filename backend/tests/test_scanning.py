@@ -9,7 +9,6 @@ from fastapi.testclient import TestClient
 from rq import Queue
 from sqlalchemy.orm import Session, sessionmaker
 
-from app.config import get_settings
 from app.models import Scan, ScanJob
 from app.models.enums import JobStatus
 from app.scanners import registry
@@ -26,9 +25,11 @@ class FakeScanner(Scanner):
         return target.host is not None
 
     def command(self, target: ScanTarget, workdir: Path) -> list[str]:
+        if self.behaviour == "exit3":
+            return ["sh", "-c", "echo 'could not reach target' >&2; exit 3"]
         return ["true"]
 
-    def parse(self, target: ScanTarget, workdir: Path, stdout: str) -> list[RawFinding]:
+    def parse(self, target: ScanTarget, workdir: Path) -> list[RawFinding]:
         return [RawFinding(self.name, "Open port", "info", f"{target.host}:{target.port}")]
 
     def run(self, target: ScanTarget, workdir: Path) -> ScanOutcome:
@@ -79,6 +80,53 @@ def test_each_scanner_gets_a_job_and_one_failure_does_not_stop_the_others(
     assert jobs["broken"].error_message == "RuntimeError: tool crashed"
     assert jobs["slow"].status is JobStatus.TIMED_OUT
     assert all(job.started_at and job.finished_at for job in jobs.values())
+
+
+def test_a_tool_exiting_with_an_error_fails_its_job(
+    client: TestClient, session_factory: sessionmaker[Session], scanners: dict[str, type[Scanner]]
+) -> None:
+    registry.register(make("good", "succeed"))
+    registry.register(make("erroring", "exit3"))
+
+    scan = start_scan(client, create_verified_target(client)["id"]).json()
+
+    jobs = jobs_of(session_factory, scan["id"])
+    assert jobs["erroring"].status is JobStatus.FAILED
+    assert jobs["erroring"].exit_code == 3
+    assert jobs["erroring"].error_message == "erroring exited with code 3: could not reach target"
+    assert jobs["erroring"].raw_output is not None
+    assert jobs["erroring"].raw_output["findings"] == []  # partial output isn't trusted
+
+
+def test_only_erroring_tools_means_the_scan_fails(
+    client: TestClient, scanners: dict[str, type[Scanner]]
+) -> None:
+    registry.register(make("erroring", "exit3"))
+
+    scan = start_scan(client, create_verified_target(client)["id"]).json()
+
+    assert client.get(f"/scans/{scan['id']}").json()["state"] == "failed"
+
+
+def test_an_adapter_that_crashes_deciding_does_not_stop_the_others(
+    client: TestClient, session_factory: sessionmaker[Session], scanners: dict[str, type[Scanner]]
+) -> None:
+    class Faulty(FakeScanner):
+        name = "faulty"
+
+        def applies_to(self, target: ScanTarget) -> bool:
+            raise KeyError("port")
+
+    registry.register(Faulty)
+    registry.register(make("good", "succeed"))
+
+    scan = start_scan(client, create_verified_target(client)["id"]).json()
+
+    assert client.get(f"/scans/{scan['id']}").json()["state"] == "complete"
+    jobs = jobs_of(session_factory, scan["id"])
+    assert jobs["good"].status is JobStatus.SUCCEEDED
+    assert jobs["faulty"].status is JobStatus.FAILED
+    assert jobs["faulty"].error_message == "KeyError: 'port'"
 
 
 def test_the_scan_fails_when_every_scanner_fails(
@@ -136,11 +184,15 @@ def test_registering_a_name_twice_is_refused(scanners: dict[str, type[Scanner]])
         registry.register(make("dup", "succeed"))
 
 
-def test_the_scanning_job_gets_the_long_timeout(sync_queue: Queue) -> None:
+def test_the_scanning_job_may_run_every_scanner_back_to_back(
+    sync_queue: Queue, scanners: dict[str, type[Scanner]]
+) -> None:
+    registry.register(type("a", (FakeScanner,), {"name": "a", "timeout_seconds": 900}))
+    registry.register(type("b", (FakeScanner,), {"name": "b", "timeout_seconds": 1200}))
     stored = Queue("pipeline", connection=sync_queue.connection)  # async: jobs wait in Redis
 
     scan_job = tasks.enqueue_stage(stored, tasks.run_scan, str(uuid.uuid4()))
     other_job = tasks.enqueue_stage(stored, tasks.run_analysis, str(uuid.uuid4()))
 
-    assert scan_job.timeout == get_settings().scan_stage_timeout_seconds == 3600
+    assert scan_job.timeout == 900 + 1200 + registry.STAGE_OVERHEAD_SECONDS
     assert other_job.timeout == 180  # RQ's default for the stub stages

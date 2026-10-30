@@ -20,8 +20,6 @@ class Settings(BaseSettings):
     pipeline_queue: str = "pipeline"
     # Phase 3 stages are stubs that sleep this long, so polling a scan shows each state.
     pipeline_step_delay_seconds: float = Field(default=1.0, ge=0)
-    # The scanning stage runs every applicable scanner in turn; RQ kills the job after this long.
-    scan_stage_timeout_seconds: int = Field(default=3600, ge=60)
 
 
 @lru_cache

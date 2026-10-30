@@ -19,6 +19,7 @@ from app.config import get_settings
 from app.db import session
 from app.models import Scan
 from app.models.enums import PipelineState
+from app.scanners import registry
 from app.workers import pipeline, queue, recovery, scanning
 
 logger = logging.getLogger(__name__)
@@ -43,9 +44,9 @@ def enqueue_stage(job_queue: Queue, stage: Stage, scan_id: str) -> Job:
     """Queue a stage job with the hook that recovers its scan if RQ abandons the job.
 
     RQ kills a job after 180 s by default, far too short for real scanners, so the scanning
-    stage gets its own, longer timeout.
+    stage gets the time all the scanners need, one after another.
     """
-    timeout = get_settings().scan_stage_timeout_seconds if stage is run_scan else None
+    timeout = registry.stage_timeout_seconds() if stage is run_scan else None
     return job_queue.enqueue(
         stage,
         scan_id,

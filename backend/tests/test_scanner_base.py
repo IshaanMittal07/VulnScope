@@ -1,6 +1,7 @@
 """The Scanner base: tools run as argument lists, time out cleanly, and get safe arguments."""
 
 import os
+import signal
 import time
 from pathlib import Path
 
@@ -8,6 +9,7 @@ import pytest
 
 from app.models import Target
 from app.models.enums import DataType, TargetType
+from app.scanners import base
 from app.scanners.base import (
     RawFinding,
     ScanTarget,
@@ -15,16 +17,30 @@ from app.scanners.base import (
     UnsafeArgumentError,
     run_command,
     safe_argument,
+    tail,
 )
 
 
 def test_arguments_never_go_through_a_shell(tmp_path: Path) -> None:
     # In a shell, ";" would end the command and "$(...)" would run another one.
-    exit_code, stdout, _ = run_command(["echo", "a; touch pwned", "$(id)"], 5, tmp_path)
+    result = run_command(["echo", "a; touch pwned", "$(id)"], 5, tmp_path)
 
-    assert exit_code == 0
-    assert stdout == "a; touch pwned $(id)\n"
+    assert result.exit_code == 0
+    assert result.stdout.read_text() == "a; touch pwned $(id)\n"
     assert not (tmp_path / "pwned").exists()
+
+
+def test_tool_output_goes_to_files_capped_by_the_kernel(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A tool printing forever must not fill the worker's memory or disk."""
+    monkeypatch.setattr(base, "MAX_FILE_BYTES", 1024 * 1024)
+
+    result = run_command(["yes", "flood"], 30, tmp_path)  # "yes" never stops by itself
+
+    assert result.exit_code == -signal.SIGXFSZ  # stopped by the file-size limit
+    assert result.stdout.stat().st_size <= 1024 * 1024
+    assert "flood" in tail(result.stdout, 12)  # the end of the file, read without loading it
 
 
 def test_timeout_kills_the_tool_and_every_child_it_started(tmp_path: Path) -> None:

@@ -23,3 +23,13 @@ def all_scanners() -> list[Scanner]:
 
 def scanners_for(target: ScanTarget) -> list[Scanner]:
     return [scanner for scanner in all_scanners() if scanner.applies_to(target)]
+
+
+# Time the scanning stage needs beyond the scanners themselves (database work, starting tools).
+STAGE_OVERHEAD_SECONDS = 300
+
+
+def stage_timeout_seconds() -> int:
+    """The scanning stage runs every scanner one after another, so its RQ job must be allowed
+    their timeouts added together, plus some overhead."""
+    return sum(scanner.timeout_seconds for scanner in _SCANNERS.values()) + STAGE_OVERHEAD_SECONDS
