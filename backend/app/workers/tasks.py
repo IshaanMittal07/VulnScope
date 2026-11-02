@@ -2,8 +2,8 @@
 
 Each one is an RQ job for one stage. It moves the scan into its state, does the stage's work,
 commits, and queues the next stage. Any error sets state=failed with an error message, and the
-remaining stages never run. In Phase 3 the work is a stub that only sleeps; later phases replace
-it (real scanners arrive in Phase 5).
+remaining stages never run. The scanning stage runs the real scanners (app/workers/scanning.py);
+the other stages are still stubs that only sleep until later phases fill them in.
 """
 
 import logging
@@ -19,7 +19,8 @@ from app.config import get_settings
 from app.db import session
 from app.models import Scan
 from app.models.enums import PipelineState
-from app.workers import pipeline, queue, recovery
+from app.scanners import registry
+from app.workers import pipeline, queue, recovery, scanning
 
 logger = logging.getLogger(__name__)
 
@@ -31,9 +32,27 @@ def placeholder_work(scan: Scan) -> None:
     time.sleep(get_settings().pipeline_step_delay_seconds)
 
 
+def stage_work(scan: Scan) -> None:
+    """The work of the scan's current stage. Only scanning is real so far (Phase 5)."""
+    if scan.state is PipelineState.SCANNING:
+        scanning.run_scanners(scan)
+    else:
+        placeholder_work(scan)
+
+
 def enqueue_stage(job_queue: Queue, stage: Stage, scan_id: str) -> Job:
-    """Queue a stage job with the hook that recovers its scan if RQ abandons the job."""
-    return job_queue.enqueue(stage, scan_id, on_failure=Callback(recovery.on_stage_failure))
+    """Queue a stage job with the hook that recovers its scan if RQ abandons the job.
+
+    RQ kills a job after 180 s by default, far too short for real scanners, so the scanning
+    stage gets the time all the scanners need, one after another.
+    """
+    timeout = registry.stage_timeout_seconds() if stage is run_scan else None
+    return job_queue.enqueue(
+        stage,
+        scan_id,
+        job_timeout=timeout,
+        on_failure=Callback(recovery.on_stage_failure),
+    )
 
 
 def _run_stage(scan_id: str, state: PipelineState, next_stage: Stage | None) -> None:
@@ -50,7 +69,7 @@ def _run_stage(scan_id: str, state: PipelineState, next_stage: Stage | None) -> 
         scan.stage_job_id = current_job.id if current_job is not None else None
         try:
             db.commit()
-            placeholder_work(scan)
+            stage_work(scan)
             if next_stage is None:
                 pipeline.advance(scan, PipelineState.COMPLETE)
             db.commit()

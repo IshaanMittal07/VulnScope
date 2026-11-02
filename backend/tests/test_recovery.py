@@ -142,7 +142,7 @@ def test_each_stage_records_the_job_that_owns_it(
     session_factory: sessionmaker[Session], sync_queue: Queue, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     owners: list[str | None] = []
-    monkeypatch.setattr(tasks, "placeholder_work", lambda scan: owners.append(scan.stage_job_id))
+    monkeypatch.setattr(tasks, "stage_work", lambda scan: owners.append(scan.stage_job_id))
     scan_id = scan_in(session_factory, PipelineState.QUEUED)
 
     first = tasks.enqueue_stage(sync_queue, tasks.run_scan, scan_id)

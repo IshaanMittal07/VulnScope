@@ -7,7 +7,7 @@ from redis.exceptions import RedisError
 
 from app.api.deps import DbSession, PipelineQueue
 from app.models import Scan, Target
-from app.schemas import ScanCreate, ScanRead
+from app.schemas import ScanCreate, ScanJobRead, ScanRead
 from app.verification import service
 from app.workers import pipeline, tasks
 
@@ -61,3 +61,13 @@ def get_scan(scan_id: uuid.UUID, db: DbSession) -> ScanRead:
     if scan is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Scan not found")
     return ScanRead.model_validate(scan)
+
+
+@router.get("/{scan_id}/jobs")
+def list_scan_jobs(scan_id: uuid.UUID, db: DbSession) -> list[ScanJobRead]:
+    """One entry per scanner run: its status, exit code, error, and how many findings it stored."""
+    scan = db.get(Scan, scan_id)
+    if scan is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Scan not found")
+    jobs = sorted(scan.jobs, key=lambda job: (job.started_at is None, job.started_at))
+    return [ScanJobRead.model_validate(job) for job in jobs]

@@ -48,7 +48,7 @@ def record_states(
         if scan.state is fail_in:
             raise RuntimeError("boom")
 
-    monkeypatch.setattr(tasks, "placeholder_work", work)
+    monkeypatch.setattr(tasks, "stage_work", work)
     return seen
 
 

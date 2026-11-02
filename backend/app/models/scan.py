@@ -63,3 +63,10 @@ class ScanJob(UUIDPrimaryKey, Base):
     finished_at: Mapped[datetime | None]
 
     scan: Mapped[Scan] = relationship(back_populates="jobs")
+
+    @property
+    def finding_count(self) -> int | None:
+        """How many raw findings the scanner reported (None until it has succeeded)."""
+        if self.raw_output is None:
+            return None
+        return int(self.raw_output.get("finding_count", 0))

@@ -43,7 +43,7 @@ def test_polling_shows_every_state(client: TestClient, monkeypatch: pytest.Monke
     def poll_during_stage(scan: Scan) -> None:
         seen.append(client.get(f"/scans/{scan.id}").json()["state"])
 
-    monkeypatch.setattr(tasks, "placeholder_work", poll_during_stage)
+    monkeypatch.setattr(tasks, "stage_work", poll_during_stage)
     scan = start_scan(client, create_verified_target(client)["id"]).json()
     seen.append(client.get(f"/scans/{scan['id']}").json()["state"])
 
@@ -57,7 +57,7 @@ def test_failed_stage_is_visible_through_the_api(
         if scan.state is PipelineState.AUDITING:
             raise RuntimeError("semgrep crashed")
 
-    monkeypatch.setattr(tasks, "placeholder_work", broken_audit)
+    monkeypatch.setattr(tasks, "stage_work", broken_audit)
     scan = start_scan(client, create_verified_target(client)["id"]).json()
 
     polled = client.get(f"/scans/{scan['id']}").json()
