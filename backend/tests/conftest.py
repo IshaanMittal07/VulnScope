@@ -16,6 +16,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from app.config import get_settings
 from app.db import session as db_session
 from app.main import app
+from app.scanners import registry
 from app.workers import queue as pipeline_queue
 
 DEFAULT_TEST_URL = "postgresql+psycopg://vulnscope:vulnscope@localhost:5432/vulnscope_test"
@@ -117,3 +118,10 @@ def client(session_factory: sessionmaker[Session], sync_queue: Queue) -> Iterato
 def lab_mode(monkeypatch: pytest.MonkeyPatch) -> None:
     """Turn LAB_MODE on for this test, whatever .env says."""
     monkeypatch.setattr(get_settings(), "lab_mode", True)
+
+
+@pytest.fixture(autouse=True)
+def no_real_scanners(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Tests never start real scanning tools (they live only in the worker image). Each test
+    gets an empty scanner registry; tests that need scanners register fakes on it."""
+    monkeypatch.setattr(registry, "_SCANNERS", {})
