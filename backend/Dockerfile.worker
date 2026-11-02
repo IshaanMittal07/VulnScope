@@ -12,6 +12,12 @@ ENV UV_COMPILE_BYTECODE=1 \
 
 # --- Scanner tools (one block per adapter) -------------------------------------------------
 
+# Nmap: port and service discovery. The worker runs as a normal user, so the adapter uses a TCP
+# connect scan (-sT), which needs no root privileges or raw sockets.
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends nmap=7.95+dfsg-3 \
+ && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 
 COPY pyproject.toml uv.lock ./
