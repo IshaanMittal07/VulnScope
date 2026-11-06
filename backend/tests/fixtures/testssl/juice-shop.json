@@ -1,0 +1,729 @@
+[
+         {
+              "id"           : "engine_problem",
+              "ip"           : "/",
+              "port"         : "443",
+              "severity"     : "WARN",
+              "finding"      : "No engine or GOST support via engine with your /usr/bin/openssl"
+          }
+,         {
+              "id"           : "optimal_proto",
+              "ip"           : "juice-shop/172.20.0.2",
+              "port"         : "3000",
+              "severity"     : "WARN",
+              "finding"      : "172.20.0.2:3000 doesn't seem to be a TLS/SSL enabled server."
+          }
+,         {
+              "id"           : "service",
+              "ip"           : "juice-shop/172.20.0.2",
+              "port"         : "3000",
+              "severity"     : "DEBUG",
+              "finding"      : "Couldn't determine service, skipping all HTTP checks"
+          }
+,         {
+              "id"           : "pre_128cipher",
+              "ip"           : "juice-shop/172.20.0.2",
+              "port"         : "3000",
+              "severity"     : "INFO",
+              "finding"      : "No 128 cipher limit bug"
+          }
+,         {
+              "id"           : "SSLv2",
+              "ip"           : "juice-shop/172.20.0.2",
+              "port"         : "3000",
+              "severity"     : "OK",
+              "finding"      : "not offered"
+          }
+,         {
+              "id"           : "SSLv3",
+              "ip"           : "juice-shop/172.20.0.2",
+              "port"         : "3000",
+              "severity"     : "OK",
+              "finding"      : "not offered"
+          }
+,         {
+              "id"           : "TLS1",
+              "ip"           : "juice-shop/172.20.0.2",
+              "port"         : "3000",
+              "severity"     : "INFO",
+              "finding"      : "not offered"
+          }
+,         {
+              "id"           : "TLS1_1",
+              "ip"           : "juice-shop/172.20.0.2",
+              "port"         : "3000",
+              "severity"     : "INFO",
+              "finding"      : "not offered"
+          }
+,         {
+              "id"           : "TLS1_2",
+              "ip"           : "juice-shop/172.20.0.2",
+              "port"         : "3000",
+              "severity"     : "MEDIUM",
+              "finding"      : "not offered"
+          }
+,         {
+              "id"           : "TLS1_3",
+              "ip"           : "juice-shop/172.20.0.2",
+              "port"         : "3000",
+              "severity"     : "LOW",
+              "finding"      : "not offered"
+          }
+,         {
+              "id"           : "NPN",
+              "ip"           : "juice-shop/172.20.0.2",
+              "port"         : "3000",
+              "severity"     : "INFO",
+              "finding"      : "not offered"
+          }
+,         {
+              "id"           : "ALPN",
+              "ip"           : "juice-shop/172.20.0.2",
+              "port"         : "3000",
+              "severity"     : "INFO",
+              "finding"      : "not offered"
+          }
+,         {
+              "id"           : "cipherlist_NULL",
+              "ip"           : "juice-shop/172.20.0.2",
+              "port"         : "3000",
+              "severity"     : "OK",
+              "cwe"          : "CWE-327",
+              "finding"      : "not offered"
+          }
+,         {
+              "id"           : "cipherlist_aNULL",
+              "ip"           : "juice-shop/172.20.0.2",
+              "port"         : "3000",
+              "severity"     : "OK",
+              "cwe"          : "CWE-327",
+              "finding"      : "not offered"
+          }
+,         {
+              "id"           : "cipherlist_EXPORT",
+              "ip"           : "juice-shop/172.20.0.2",
+              "port"         : "3000",
+              "severity"     : "OK",
+              "cwe"          : "CWE-327",
+              "finding"      : "not offered"
+          }
+,         {
+              "id"           : "cipherlist_LOW",
+              "ip"           : "juice-shop/172.20.0.2",
+              "port"         : "3000",
+              "severity"     : "OK",
+              "cwe"          : "CWE-327",
+              "finding"      : "not offered"
+          }
+,         {
+              "id"           : "cipherlist_3DES_IDEA",
+              "ip"           : "juice-shop/172.20.0.2",
+              "port"         : "3000",
+              "severity"     : "INFO",
+              "cwe"          : "CWE-310",
+              "finding"      : "not offered"
+          }
+,         {
+              "id"           : "cipherlist_OBSOLETED",
+              "ip"           : "juice-shop/172.20.0.2",
+              "port"         : "3000",
+              "severity"     : "INFO",
+              "cwe"          : "CWE-310",
+              "finding"      : "not offered"
+          }
+,         {
+              "id"           : "cipherlist_STRONG_NOFS",
+              "ip"           : "juice-shop/172.20.0.2",
+              "port"         : "3000",
+              "severity"     : "INFO",
+              "finding"      : "not offered"
+          }
+,         {
+              "id"           : "cipherlist_STRONG_FS",
+              "ip"           : "juice-shop/172.20.0.2",
+              "port"         : "3000",
+              "severity"     : "MEDIUM",
+              "finding"      : "not offered"
+          }
+,         {
+              "id"           : "FS",
+              "ip"           : "juice-shop/172.20.0.2",
+              "port"         : "3000",
+              "severity"     : "MEDIUM",
+              "finding"      : "No ciphers supporting Forward Secrecy offered"
+          }
+,         {
+              "id"           : "TLS_extensions",
+              "ip"           : "juice-shop/172.20.0.2",
+              "port"         : "3000",
+              "severity"     : "INFO",
+              "finding"      : "(none)"
+          }
+,         {
+              "id"           : "TLS_session_ticket",
+              "ip"           : "juice-shop/172.20.0.2",
+              "port"         : "3000",
+              "severity"     : "INFO",
+              "finding"      : "no -- no lifetime advertised"
+          }
+,         {
+              "id"           : "SSL_sessionID_support",
+              "ip"           : "juice-shop/172.20.0.2",
+              "port"         : "3000",
+              "severity"     : "INFO",
+              "finding"      : "no"
+          }
+,         {
+              "id"           : "sessionresumption_ticket",
+              "ip"           : "juice-shop/172.20.0.2",
+              "port"         : "3000",
+              "severity"     : "INFO",
+              "finding"      : "not supported"
+          }
+,         {
+              "id"           : "sessionresumption_ID",
+              "ip"           : "juice-shop/172.20.0.2",
+              "port"         : "3000",
+              "severity"     : "INFO",
+              "finding"      : "No Session ID, no resumption"
+          }
+,         {
+              "id"           : "TLS_timestamp",
+              "ip"           : "juice-shop/172.20.0.2",
+              "port"         : "3000",
+              "severity"     : "INFO",
+              "finding"      : "None returned by SSLv3 through TLSv1.2"
+          }
+,         {
+              "id"           : "cert_compression",
+              "ip"           : "juice-shop/172.20.0.2",
+              "port"         : "3000",
+              "severity"     : "INFO",
+              "finding"      : "N/A"
+          }
+,         {
+              "id"           : "clientAuth",
+              "ip"           : "juice-shop/172.20.0.2",
+              "port"         : "3000",
+              "severity"     : "INFO",
+              "finding"      : "none"
+          }
+,         {
+              "id"           : "scanProblem",
+              "ip"           : "juice-shop/172.20.0.2",
+              "port"         : "3000",
+              "severity"     : "WARN",
+              "finding"      : "Client problem: No server certificate could be retrieved. Thus we can't continue with 'server defaults'."
+          }
+,         {
+              "id"           : "cert_numbers",
+              "ip"           : "juice-shop/172.20.0.2",
+              "port"         : "3000",
+              "severity"     : "INFO",
+              "finding"      : "0"
+          }
+,         {
+              "id"           : "heartbleed",
+              "ip"           : "juice-shop/172.20.0.2",
+              "port"         : "3000",
+              "severity"     : "OK",
+              "cve"          : "CVE-2014-0160",
+              "cwe"          : "CWE-119",
+              "finding"      : "not vulnerable, no heartbeat extension"
+          }
+,         {
+              "id"           : "CCS",
+              "ip"           : "juice-shop/172.20.0.2",
+              "port"         : "3000",
+              "severity"     : "OK",
+              "cve"          : "CVE-2014-0224",
+              "cwe"          : "CWE-310",
+              "finding"      : "not vulnerable"
+          }
+,         {
+              "id"           : "ticketbleed",
+              "ip"           : "juice-shop/172.20.0.2",
+              "port"         : "3000",
+              "severity"     : "INFO",
+              "cve"          : "CVE-2016-9244",
+              "cwe"          : "CWE-200",
+              "finding"      : "not applicable, not HTTP"
+          }
+,         {
+              "id"           : "ROBOT",
+              "ip"           : "juice-shop/172.20.0.2",
+              "port"         : "3000",
+              "severity"     : "OK",
+              "cve"          : "CVE-2017-17382 CVE-2017-17427 CVE-2017-17428 CVE-2017-13098 CVE-2017-1000385 CVE-2017-13099 CVE-2016-6883 CVE-2012-5081 CVE-2017-6168",
+              "cwe"          : "CWE-203",
+              "finding"      : "not vulnerable, no RSA key transport cipher"
+          }
+,         {
+              "id"           : "secure_renego",
+              "ip"           : "juice-shop/172.20.0.2",
+              "port"         : "3000",
+              "severity"     : "WARN",
+              "cwe"          : "CWE-310",
+              "finding"      : "OpenSSL handshake didn't succeed"
+          }
+,         {
+              "id"           : "secure_client_renego",
+              "ip"           : "juice-shop/172.20.0.2",
+              "port"         : "3000",
+              "severity"     : "OK",
+              "cve"          : "CVE-2011-1473",
+              "cwe"          : "CWE-310",
+              "finding"      : "not vulnerable"
+          }
+,         {
+              "id"           : "CRIME_TLS",
+              "ip"           : "juice-shop/172.20.0.2",
+              "port"         : "3000",
+              "severity"     : "WARN",
+              "cve"          : "CVE-2012-4929",
+              "cwe"          : "CWE-310",
+              "finding"      : "Check failed, couldn't connect"
+          }
+,         {
+              "id"           : "POODLE_SSL",
+              "ip"           : "juice-shop/172.20.0.2",
+              "port"         : "3000",
+              "severity"     : "OK",
+              "cve"          : "CVE-2014-3566",
+              "cwe"          : "CWE-310",
+              "finding"      : "not vulnerable, no SSLv3"
+          }
+,         {
+              "id"           : "fallback_SCSV",
+              "ip"           : "juice-shop/172.20.0.2",
+              "port"         : "3000",
+              "severity"     : "WARN",
+              "finding"      : "Check failed. (couldn't connect)"
+          }
+,         {
+              "id"           : "SWEET32",
+              "ip"           : "juice-shop/172.20.0.2",
+              "port"         : "3000",
+              "severity"     : "OK",
+              "cve"          : "CVE-2016-2183 CVE-2016-6329",
+              "cwe"          : "CWE-327",
+              "finding"      : "not vulnerable"
+          }
+,         {
+              "id"           : "FREAK",
+              "ip"           : "juice-shop/172.20.0.2",
+              "port"         : "3000",
+              "severity"     : "OK",
+              "cve"          : "CVE-2015-0204",
+              "cwe"          : "CWE-310",
+              "finding"      : "not vulnerable"
+          }
+,         {
+              "id"           : "DROWN",
+              "ip"           : "juice-shop/172.20.0.2",
+              "port"         : "3000",
+              "severity"     : "OK",
+              "cve"          : "CVE-2016-0800 CVE-2016-0703",
+              "cwe"          : "CWE-310",
+              "finding"      : "not vulnerable on this host and port"
+          }
+,         {
+              "id"           : "DROWN_hint",
+              "ip"           : "juice-shop/172.20.0.2",
+              "port"         : "3000",
+              "severity"     : "INFO",
+              "cve"          : "CVE-2016-0800 CVE-2016-0703",
+              "cwe"          : "CWE-310",
+              "finding"      : "no RSA certificate, can't be used with SSLv2 elsewhere"
+          }
+,         {
+              "id"           : "LOGJAM",
+              "ip"           : "juice-shop/172.20.0.2",
+              "port"         : "3000",
+              "severity"     : "OK",
+              "cve"          : "CVE-2015-4000",
+              "cwe"          : "CWE-310",
+              "finding"      : "not vulnerable, no DH EXPORT ciphers,"
+          }
+,         {
+              "id"           : "LOGJAM-common_primes",
+              "ip"           : "juice-shop/172.20.0.2",
+              "port"         : "3000",
+              "severity"     : "OK",
+              "cve"          : "CVE-2015-4000",
+              "cwe"          : "CWE-310",
+              "finding"      : "no DH key with <= TLS 1.2"
+          }
+,         {
+              "id"           : "BEAST",
+              "ip"           : "juice-shop/172.20.0.2",
+              "port"         : "3000",
+              "severity"     : "OK",
+              "cve"          : "CVE-2011-3389",
+              "cwe"          : "CWE-20",
+              "finding"      : "not vulnerable, no SSL3 or TLS1"
+          }
+,         {
+              "id"           : "LUCKY13",
+              "ip"           : "juice-shop/172.20.0.2",
+              "port"         : "3000",
+              "severity"     : "OK",
+              "cve"          : "CVE-2013-0169",
+              "cwe"          : "CWE-310",
+              "finding"      : "not vulnerable"
+          }
+,         {
+              "id"           : "winshock",
+              "ip"           : "juice-shop/172.20.0.2",
+              "port"         : "3000",
+              "severity"     : "OK",
+              "cve"          : "CVE-2014-6321",
+              "cwe"          : "CWE-94",
+              "finding"      : "not vulnerable - no HTTP or RDP"
+          }
+,         {
+              "id"           : "RC4",
+              "ip"           : "juice-shop/172.20.0.2",
+              "port"         : "3000",
+              "severity"     : "OK",
+              "cve"          : "CVE-2013-2566 CVE-2015-2808",
+              "cwe"          : "CWE-310",
+              "finding"      : "not vulnerable"
+          }
+,         {
+              "id"           : "clientsimulation-android_70",
+              "ip"           : "juice-shop/172.20.0.2",
+              "port"         : "3000",
+              "severity"     : "INFO",
+              "finding"      : "No connection"
+          }
+,         {
+              "id"           : "clientsimulation-android_81",
+              "ip"           : "juice-shop/172.20.0.2",
+              "port"         : "3000",
+              "severity"     : "INFO",
+              "finding"      : "No connection"
+          }
+,         {
+              "id"           : "clientsimulation-android_90",
+              "ip"           : "juice-shop/172.20.0.2",
+              "port"         : "3000",
+              "severity"     : "INFO",
+              "finding"      : "No connection"
+          }
+,         {
+              "id"           : "clientsimulation-android_X",
+              "ip"           : "juice-shop/172.20.0.2",
+              "port"         : "3000",
+              "severity"     : "INFO",
+              "finding"      : "No connection"
+          }
+,         {
+              "id"           : "clientsimulation-android_11_12",
+              "ip"           : "juice-shop/172.20.0.2",
+              "port"         : "3000",
+              "severity"     : "INFO",
+              "finding"      : "No connection"
+          }
+,         {
+              "id"           : "clientsimulation-android_13_14",
+              "ip"           : "juice-shop/172.20.0.2",
+              "port"         : "3000",
+              "severity"     : "INFO",
+              "finding"      : "No connection"
+          }
+,         {
+              "id"           : "clientsimulation-android_15",
+              "ip"           : "juice-shop/172.20.0.2",
+              "port"         : "3000",
+              "severity"     : "INFO",
+              "finding"      : "No connection"
+          }
+,         {
+              "id"           : "clientsimulation-chrome_101_win10",
+              "ip"           : "juice-shop/172.20.0.2",
+              "port"         : "3000",
+              "severity"     : "INFO",
+              "finding"      : "No connection"
+          }
+,         {
+              "id"           : "clientsimulation-chromium_137_win11",
+              "ip"           : "juice-shop/172.20.0.2",
+              "port"         : "3000",
+              "severity"     : "INFO",
+              "finding"      : "No connection"
+          }
+,         {
+              "id"           : "clientsimulation-firefox_100_win10",
+              "ip"           : "juice-shop/172.20.0.2",
+              "port"         : "3000",
+              "severity"     : "INFO",
+              "finding"      : "No connection"
+          }
+,         {
+              "id"           : "clientsimulation-firefox_137_win11",
+              "ip"           : "juice-shop/172.20.0.2",
+              "port"         : "3000",
+              "severity"     : "INFO",
+              "finding"      : "No connection"
+          }
+,         {
+              "id"           : "clientsimulation-ie_8_win7",
+              "ip"           : "juice-shop/172.20.0.2",
+              "port"         : "3000",
+              "severity"     : "INFO",
+              "finding"      : "No connection"
+          }
+,         {
+              "id"           : "clientsimulation-ie_11_win7",
+              "ip"           : "juice-shop/172.20.0.2",
+              "port"         : "3000",
+              "severity"     : "INFO",
+              "finding"      : "No connection"
+          }
+,         {
+              "id"           : "clientsimulation-ie_11_win81",
+              "ip"           : "juice-shop/172.20.0.2",
+              "port"         : "3000",
+              "severity"     : "INFO",
+              "finding"      : "No connection"
+          }
+,         {
+              "id"           : "clientsimulation-ie_11_winphone81",
+              "ip"           : "juice-shop/172.20.0.2",
+              "port"         : "3000",
+              "severity"     : "INFO",
+              "finding"      : "No connection"
+          }
+,         {
+              "id"           : "clientsimulation-ie_11_win10",
+              "ip"           : "juice-shop/172.20.0.2",
+              "port"         : "3000",
+              "severity"     : "INFO",
+              "finding"      : "No connection"
+          }
+,         {
+              "id"           : "clientsimulation-edge_15_win10",
+              "ip"           : "juice-shop/172.20.0.2",
+              "port"         : "3000",
+              "severity"     : "INFO",
+              "finding"      : "No connection"
+          }
+,         {
+              "id"           : "clientsimulation-edge_101_win10_21h2",
+              "ip"           : "juice-shop/172.20.0.2",
+              "port"         : "3000",
+              "severity"     : "INFO",
+              "finding"      : "No connection"
+          }
+,         {
+              "id"           : "clientsimulation-edge_133_win11_23h2",
+              "ip"           : "juice-shop/172.20.0.2",
+              "port"         : "3000",
+              "severity"     : "INFO",
+              "finding"      : "No connection"
+          }
+,         {
+              "id"           : "clientsimulation-safari_184_ios_184",
+              "ip"           : "juice-shop/172.20.0.2",
+              "port"         : "3000",
+              "severity"     : "INFO",
+              "finding"      : "No connection"
+          }
+,         {
+              "id"           : "clientsimulation-safari_154_osx_1231",
+              "ip"           : "juice-shop/172.20.0.2",
+              "port"         : "3000",
+              "severity"     : "INFO",
+              "finding"      : "No connection"
+          }
+,         {
+              "id"           : "clientsimulation-safari_184_osx_154",
+              "ip"           : "juice-shop/172.20.0.2",
+              "port"         : "3000",
+              "severity"     : "INFO",
+              "finding"      : "No connection"
+          }
+,         {
+              "id"           : "clientsimulation-java_7u25",
+              "ip"           : "juice-shop/172.20.0.2",
+              "port"         : "3000",
+              "severity"     : "INFO",
+              "finding"      : "No connection"
+          }
+,         {
+              "id"           : "clientsimulation-java_80442",
+              "ip"           : "juice-shop/172.20.0.2",
+              "port"         : "3000",
+              "severity"     : "INFO",
+              "finding"      : "No connection"
+          }
+,         {
+              "id"           : "clientsimulation-java_1102",
+              "ip"           : "juice-shop/172.20.0.2",
+              "port"         : "3000",
+              "severity"     : "INFO",
+              "finding"      : "No connection"
+          }
+,         {
+              "id"           : "clientsimulation-java_1703",
+              "ip"           : "juice-shop/172.20.0.2",
+              "port"         : "3000",
+              "severity"     : "INFO",
+              "finding"      : "No connection"
+          }
+,         {
+              "id"           : "clientsimulation-java_2106",
+              "ip"           : "juice-shop/172.20.0.2",
+              "port"         : "3000",
+              "severity"     : "INFO",
+              "finding"      : "No connection"
+          }
+,         {
+              "id"           : "clientsimulation-go_1178",
+              "ip"           : "juice-shop/172.20.0.2",
+              "port"         : "3000",
+              "severity"     : "INFO",
+              "finding"      : "No connection"
+          }
+,         {
+              "id"           : "clientsimulation-libressl_336",
+              "ip"           : "juice-shop/172.20.0.2",
+              "port"         : "3000",
+              "severity"     : "INFO",
+              "finding"      : "No connection"
+          }
+,         {
+              "id"           : "clientsimulation-openssl_102e",
+              "ip"           : "juice-shop/172.20.0.2",
+              "port"         : "3000",
+              "severity"     : "INFO",
+              "finding"      : "No connection"
+          }
+,         {
+              "id"           : "clientsimulation-openssl_111d",
+              "ip"           : "juice-shop/172.20.0.2",
+              "port"         : "3000",
+              "severity"     : "INFO",
+              "finding"      : "No connection"
+          }
+,         {
+              "id"           : "clientsimulation-openssl_315",
+              "ip"           : "juice-shop/172.20.0.2",
+              "port"         : "3000",
+              "severity"     : "INFO",
+              "finding"      : "No connection"
+          }
+,         {
+              "id"           : "clientsimulation-openssl_350",
+              "ip"           : "juice-shop/172.20.0.2",
+              "port"         : "3000",
+              "severity"     : "INFO",
+              "finding"      : "No connection"
+          }
+,         {
+              "id"           : "clientsimulation-apple_mail_16_0",
+              "ip"           : "juice-shop/172.20.0.2",
+              "port"         : "3000",
+              "severity"     : "INFO",
+              "finding"      : "No connection"
+          }
+,         {
+              "id"           : "clientsimulation-thunderbird_91_9",
+              "ip"           : "juice-shop/172.20.0.2",
+              "port"         : "3000",
+              "severity"     : "INFO",
+              "finding"      : "No connection"
+          }
+,         {
+              "id"           : "rating_spec",
+              "ip"           : "juice-shop/172.20.0.2",
+              "port"         : "3000",
+              "severity"     : "INFO",
+              "finding"      : "SSL Labs's 'SSL Server Rating Guide' (version 2009q from 2020-01-30)"
+          }
+,         {
+              "id"           : "rating_doc",
+              "ip"           : "juice-shop/172.20.0.2",
+              "port"         : "3000",
+              "severity"     : "INFO",
+              "finding"      : "https://github.com/ssllabs/research/wiki/SSL-Server-Rating-Guide"
+          }
+,         {
+              "id"           : "protocol_support_score",
+              "ip"           : "juice-shop/172.20.0.2",
+              "port"         : "3000",
+              "severity"     : "INFO",
+              "finding"      : "50"
+          }
+,         {
+              "id"           : "protocol_support_score_weighted",
+              "ip"           : "juice-shop/172.20.0.2",
+              "port"         : "3000",
+              "severity"     : "INFO",
+              "finding"      : "15"
+          }
+,         {
+              "id"           : "key_exchange_score",
+              "ip"           : "juice-shop/172.20.0.2",
+              "port"         : "3000",
+              "severity"     : "INFO",
+              "finding"      : "100"
+          }
+,         {
+              "id"           : "key_exchange_score_weighted",
+              "ip"           : "juice-shop/172.20.0.2",
+              "port"         : "3000",
+              "severity"     : "INFO",
+              "finding"      : "30"
+          }
+,         {
+              "id"           : "cipher_strength_score",
+              "ip"           : "juice-shop/172.20.0.2",
+              "port"         : "3000",
+              "severity"     : "INFO",
+              "finding"      : "60"
+          }
+,         {
+              "id"           : "cipher_strength_score_weighted",
+              "ip"           : "juice-shop/172.20.0.2",
+              "port"         : "3000",
+              "severity"     : "INFO",
+              "finding"      : "24"
+          }
+,         {
+              "id"           : "final_score",
+              "ip"           : "juice-shop/172.20.0.2",
+              "port"         : "3000",
+              "severity"     : "INFO",
+              "finding"      : "69"
+          }
+,         {
+              "id"           : "overall_grade",
+              "ip"           : "juice-shop/172.20.0.2",
+              "port"         : "3000",
+              "severity"     : "MEDIUM",
+              "finding"      : "C"
+          }
+,         {
+              "id"           : "grade_cap_reason_1",
+              "ip"           : "juice-shop/172.20.0.2",
+              "port"         : "3000",
+              "severity"     : "INFO",
+              "finding"      : "Grade capped to C. TLS 1.2 or TLS 1.3 are not offered"
+          }
+,         {
+              "id"           : "grade_cap_reason_2",
+              "ip"           : "juice-shop/172.20.0.2",
+              "port"         : "3000",
+              "severity"     : "INFO",
+              "finding"      : "Grade capped to B. Forward Secrecy (FS) is not supported"
+          }
+,         {
+              "id"           : "scanTime",
+              "ip"           : "juice-shop/172.20.0.2",
+              "port"         : "3000",
+              "severity"     : "INFO",
+              "finding"      : "62"
+          }
+]
