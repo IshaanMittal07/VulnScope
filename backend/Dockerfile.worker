@@ -18,6 +18,11 @@ RUN apt-get update \
  && apt-get install -y --no-install-recommends nmap=7.95+dfsg-3 \
  && rm -rf /var/lib/apt/lists/*
 
+# testssl.sh: TLS/SSL configuration checks (protocols, ciphers, certificate, known flaws).
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends testssl.sh=3.2.1+dfsg-1 \
+ && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 
 COPY pyproject.toml uv.lock ./
