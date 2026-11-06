@@ -1,0 +1,22 @@
+
+                     __     _
+   ____  __  _______/ /__  (_)
+  / __ \/ / / / ___/ / _ \/ /
+ / / / / /_/ / /__/ /  __/ /
+/_/ /_/\__,_/\___/_/\___/_/   v3.11.1
+
+		projectdiscovery.io
+
+[ERR] Could not read nuclei-ignore file: open /home/app/.config/nuclei/.nuclei-ignore: no such file or directory
+[ERR] Could not read nuclei-ignore file: open /home/app/.config/nuclei/.nuclei-ignore: no such file or directory
+[WRN] Found 262 templates with runtime error (use -validate flag for further examination)
+[INF] Current nuclei version: v3.11.1 (unknown) - remove '-duc' flag to enable update checks
+[INF] Current nuclei-templates version:  (unknown) - remove '-duc' flag to enable update checks
+[INF] New templates added in latest release: 0
+[INF] Templates loaded for current scan: 6043
+[INF] Executing 6043 signed templates from projectdiscovery/nuclei-templates
+[INF] Targets loaded for current scan: 1
+[INF] Templates clustered: 466 (Reduced 400 Requests)
+[INF] Skipped juice-shop:4040 from target list as found unresponsive permanently: cause="port closed or filtered" address=juice-shop:4040 chain="connection refused; got err while executing https://juice-shop:4040/jobs/?\"'><script>alert(document.domain)</script>"
+[INF] Scan completed in 5m. 1 matches found.
+[INF] HTTP connections: 9234 total, 2599 new, 6635 reused (71.9%)

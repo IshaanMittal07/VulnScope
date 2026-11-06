@@ -1,0 +1,21 @@
+
+                     __     _
+   ____  __  _______/ /__  (_)
+  / __ \/ / / / ___/ / _ \/ /
+ / / / / /_/ / /__/ /  __/ /
+/_/ /_/\__,_/\___/_/\___/_/   v3.11.1
+
+		projectdiscovery.io
+
+[ERR] Could not read nuclei-ignore file: open /home/app/.config/nuclei/.nuclei-ignore: no such file or directory
+[ERR] Could not read nuclei-ignore file: open /home/app/.config/nuclei/.nuclei-ignore: no such file or directory
+[WRN] Found 262 templates with runtime error (use -validate flag for further examination)
+[INF] Current nuclei version: v3.11.1 (unknown) - remove '-duc' flag to enable update checks
+[INF] Current nuclei-templates version:  (unknown) - remove '-duc' flag to enable update checks
+[INF] New templates added in latest release: 0
+[INF] Templates loaded for current scan: 9145
+[INF] Executing 9145 signed templates from projectdiscovery/nuclei-templates
+[INF] Targets loaded for current scan: 1
+[INF] Templates clustered: 2267 (Reduced 2137 Requests)
+[INF] Skipped juice-shop:3000 from target list as found unresponsive permanently: cause="no address found for host" chain="got err while executing http://juice-shop:3000/upgrade/detail.jsp/login/LoginSSO.jsp?id=1%20UNION%20SELECT%20md5(999999999)%20as%20id%20from%20HrmResourceManager"
+[INF] Scan completed in 4.219648156s. No results found.

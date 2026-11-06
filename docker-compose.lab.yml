@@ -6,6 +6,8 @@
 services:
   juice-shop:
     image: bkimminich/juice-shop:v20.3.0@sha256:cea5a4af4aacee498c491491af0408934ec81d004035c0a02ef3e54395e3bf27
+    # Long scanning sessions can exhaust Node's heap; come back up instead of staying down.
+    restart: unless-stopped
     networks: [lab]
 
   dvwa:
@@ -14,6 +16,7 @@ services:
     environment:
       DB_SERVER: dvwa-db
     depends_on: [dvwa-db]
+    restart: unless-stopped
     networks: [lab]
 
   dvwa-db:

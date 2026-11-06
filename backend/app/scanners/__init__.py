@@ -4,4 +4,4 @@ Importing this package imports every adapter module, and each adapter registers 
 app.scanners.registry, in the order below (the order the scanning stage runs them).
 """
 
-from app.scanners import nmap, testssl  # noqa: F401
+from app.scanners import nmap, nuclei, testssl  # noqa: F401
