@@ -23,6 +23,32 @@ RUN apt-get update \
  && apt-get install -y --no-install-recommends testssl.sh=3.2.1+dfsg-1 \
  && rm -rf /var/lib/apt/lists/*
 
+# Nuclei: template-based checks for known vulnerabilities and misconfigurations. The binary and
+# the template set are pinned and checksum-verified, and scans never update them, so a scan only
+# ever runs these exact templates.
+ARG TARGETARCH
+ARG NUCLEI_VERSION=3.11.1
+ARG NUCLEI_TEMPLATES_VERSION=10.5.1
+RUN set -e \
+ && case "$TARGETARCH" in \
+      amd64) nuclei_sha=ea63d4ae232808cd7c6bc00d0142428e231fab59dae01042246097d195835ab6 ;; \
+      arm64) nuclei_sha=8044e3d9768ba0a744b2872c1a87e813006f013da97ca9f50f7661a4203bec07 ;; \
+      *) echo "no pinned nuclei build for $TARGETARCH" >&2; exit 1 ;; \
+    esac \
+ && apt-get update \
+ && apt-get install -y --no-install-recommends ca-certificates curl unzip \
+ && curl -fsSL -o /tmp/nuclei.zip \
+      "https://github.com/projectdiscovery/nuclei/releases/download/v${NUCLEI_VERSION}/nuclei_${NUCLEI_VERSION}_linux_${TARGETARCH}.zip" \
+ && echo "${nuclei_sha}  /tmp/nuclei.zip" | sha256sum -c - \
+ && unzip -q /tmp/nuclei.zip nuclei -d /usr/local/bin \
+ && curl -fsSL -o /tmp/templates.tar.gz \
+      "https://github.com/projectdiscovery/nuclei-templates/archive/refs/tags/v${NUCLEI_TEMPLATES_VERSION}.tar.gz" \
+ && echo "30fe1cfaced4635f886e4a2673641bba86998dceec28e468274524e789aa56eb  /tmp/templates.tar.gz" | sha256sum -c - \
+ && mkdir -p /opt/nuclei-templates \
+ && tar -xzf /tmp/templates.tar.gz -C /opt/nuclei-templates --strip-components=1 \
+ && apt-get purge -y unzip \
+ && rm -rf /tmp/nuclei.zip /tmp/templates.tar.gz /var/lib/apt/lists/*
+
 WORKDIR /app
 
 COPY pyproject.toml uv.lock ./
